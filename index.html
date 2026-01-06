@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinLab - 財金資訊工程實驗室</title>
+    <style>
+        /* 全局設定 */
+        body { font-family: "Segoe UI", "Microsoft JhengHei", sans-serif; background-color: #f6f8fa; color: #24292f; margin: 0; padding: 0; line-height: 1.6; }
+
+        /* Header */
+        header { background: linear-gradient(135deg, #0d1117 0%, #161b22 100%); color: white; padding: 3rem 1rem; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        header h1 { margin: 0; font-size: 2.8rem; letter-spacing: 1px; }
+        header .subtitle { color: #8b949e; font-size: 1.2rem; margin-top: 10px; font-weight: 300; }
+
+        /* Container */
+        .container { max-width: 1000px; margin: -30px auto 40px; padding: 0 20px; position: relative; z-index: 10; }
+
+        /* Grid System (這是自動排版的關鍵，不建議用分隔線破壞它) */
+        .grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); 
+            gap: 30px; /* 卡片之間的間距，這就是最好的分隔 */
+        }
+
+        /* Cards */
+        .card { background: white; border-radius: 12px; padding: 30px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); transition: transform 0.3s ease, box-shadow 0.3s ease; border-top: 6px solid #ccc; display: flex; flex-direction: column; justify-content: space-between; height: 100%; }
+        .card:hover { transform: translateY(-8px); box-shadow: 0 20px 40px rgba(0,0,0,0.1); }
+        .card h3 { margin-top: 0; font-size: 1.5rem; color: #1f2328; display: flex; align-items: center; gap: 10px; }
+        .card p { color: #57606a; margin-bottom: 25px; font-size: 0.95rem; flex-grow: 1; }
+
+        /* Buttons */
+        .btn { display: inline-block; text-align: center; padding: 12px 0; width: 100%; border-radius: 6px; text-decoration: none; font-weight: 600; transition: background-color 0.2s; cursor: pointer; }
+
+        /* --- App 1: FV (藍色系 - 穩健增長) --- */
+        .card.fv { border-top-color: #0969da; }
+        .card.fv h3::before { content: "🚀"; font-size: 1.2em; }
+        .card.fv .btn { background-color: #0969da; color: white; }
+        .card.fv .btn:hover { background-color: #0356b6; }
+
+        /* --- App 2: Mortgage (綠色系 - 資產規劃) --- */
+        .card.mortgage { border-top-color: #2ea44f; }
+        .card.mortgage h3::before { content: "🏠"; font-size: 1.2em; }
+        .card.mortgage .btn { background-color: #2ea44f; color: white; }
+        .card.mortgage .btn:hover { background-color: #2c974b; }
+
+        /* --- App 3: Beta (橘紅色系 - 風險管理) --- */
+        /* 這是新增的部分 */
+        .card.beta { border-top-color: #cf222e; }
+        .card.beta h3::before { content: "📊"; font-size: 1.2em; }
+        .card.beta .btn { background-color: #cf222e; color: white; }
+        .card.beta .btn:hover { background-color: #a40e26; }
+
+        footer { text-align: center; padding: 40px; color: #6e7781; font-size: 0.9rem; border-top: 1px solid #eaecef; margin-top: 40px; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>FinLab</h1>
+    <p class="subtitle">財務工程與資訊科學的實驗平台</p>
+</header>
+
+<div class="container">
+    <div class="grid">
+        
+        <div class="card fv">
+            <div>
+                <h3>投資未來值試算 (FV)</h3>
+                <p>運用複利效應預測資產增長。輸入初始本金、定期定額與報酬率，系統將繪製「成本 vs 資產」曲線。</p>
+            </div>
+            <a href="fv/index.html" class="btn">開始計算資產增長 &rarr;</a>
+        </div>
+
+        <div class="card mortgage">
+            <div>
+                <h3>房貸大師 (Mortgage)</h3>
+                <p>包含本息攤還、變動利率模擬，以及多重提前還款計算。提供詳細的年度還款明細表。</p>
+            </div>
+            <a href="mortgage/index.html" class="btn">開始分析房貸 &rarr;</a>
+        </div>
+
+        <div class="card beta">
+            <div>
+                <h3>Beta 風險係數 (CAPM)</h3>
+                <p>即時連線 Yahoo Finance，計算個股與大盤的連動性 (Beta) 與 Alpha 值。支援動態日期區間與圖表分析。</p>
+            </div>
+            <a href="beta/index.html" class="btn">進入風險分析 &rarr;</a>
+        </div>
+
+    </div>
+</div>
+
+<footer>© 2026 FinLab Project. Powered by GitHub Pages & R-Shinylive.</footer>
+
+</body>
+</html>

@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>現值與未來值計算器（含現金流）</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 900px; margin: auto; }
+    label { display: block; margin-top: 10px; }
+    input, select { width: 100%; padding: 6px; box-sizing: border-box; }
+    button { margin-top: 12px; padding: 10px; width: 100%; font-size: 16px; cursor: pointer; }
+    .formula { background: #f2f2f2; padding: 10px; margin-top: 15px; font-size: 16px; line-height: 1.5; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background: #fafafa; }
+    .row-actions button { width: auto; font-size: 14px; padding: 6px 10px; margin: 0; }
+    .hint { color: #555; font-size: 13px; margin-top: 6px; }
+  </style>
+</head>
+<body>
+
+<h2>現值（PV）與未來值（FV）計算器（含不同期現金流）</h2>
+
+<div class="formula">
+  <strong>計算邏輯：</strong><br>
+  若現金流在<strong>期末</strong>（年末）發生：<br>
+  第 i 年期末餘額：B<sub>i</sub> = B<sub>i-1</sub> × (1 + r) + CF<sub>i</sub><br><br>
+  若現金流在<strong>期初</strong>（年初）發生：<br>
+  第 i 年期末餘額：B<sub>i</sub> = (B<sub>i-1</sub> + CF<sub>i</sub>) × (1 + r)<br><br>
+  其中 B<sub>0</sub> = PV，最後 FV = B<sub>n</sub>
+</div>
+
+<label>現值 PV（第 0 年當下）：</label>
+<input type="number" id="pv" value="10000" step="any" />
+
+<label>年利率 r（%）：</label>
+<input type="number" id="rate" value="5" step="any" />
+
+<label>期數 n（年）：</label>
+<input type="number" id="years" value="10" min="0" step="1" />
+
+<label>現金流發生時點：</label>
+<select id="timing">
+  <option value="end" selected>期末（第 i 年結束時投入/流出 CF_i）</option>
+  <option value="begin">期初（第 i 年開始時投入/流出 CF_i）</option>
+</select>
+<div class="hint">
+  小提醒：CF 可正（流入/投入），也可負（流出/提領）。同一年可以新增多筆，會自動加總。
+</div>
+
+<h3 style="margin-top:18px;">各期現金流（CF）</h3>
+<table>
+  <thead>
+    <tr>
+      <th style="width: 140px;">第幾年（1 ~ n）</th>
+      <th>現金流 CF（元）</th>
+      <th style="width: 110px;">操作</th>
+    </tr>
+  </thead>
+  <tbody id="cfTableBody"></tbody>
+</table>
+
+<button type="button" onclick="addCashflowRow(1, 0)">＋ 新增一筆現金流</button>
+<button type="button" onclick="calculate()">計算並繪圖</button>
+
+<h3 id="result"></h3>
+
+<canvas id="chart"></canvas>
+
+<script>
+let chart;
+
+function addCashflowRow(year = 1, amount = 0) {
+  const tbody = document.getElementById("cfTableBody");
+  const tr = document.createElement("tr");
+
+  tr.innerHTML = `
+    <td>
+      <input type="number" class="cfYear" min="1" step="1" value="${year}">
+    </td>
+    <td>
+      <input type="number" class="cfAmount" step="any" value="${amount}">
+    </td>
+    <td class="row-actions">
+      <button type="button" onclick="removeRow(this)">刪除</button>
+    </td>
+  `;
+  tbody.appendChild(tr);
+}
+
+function removeRow(btn) {
+  const tr = btn.closest("tr");
+  if (tr) tr.remove();
+}
+
+function getCashflows(years) {
+  // cf[i] = 第 i 年的現金流（1..years），cf[0] 不用
+  const cf = new Array(years + 1).fill(0);
+
+  const yearInputs = document.querySelectorAll(".cfYear");
+  const amtInputs = document.querySelectorAll(".cfAmount");
+
+  for (let k = 0; k < yearInputs.length; k++) {
+    const y = parseInt(yearInputs[k].value, 10);
+    const a = parseFloat(amtInputs[k].value);
+
+    if (!Number.isFinite(y) || !Number.isFinite(a)) continue;
+    if (y < 1 || y > years) continue;
+
+    cf[y] += a; // 同年多筆會自動加總
+  }
+  return cf;
+}
+
+function calculate() {
+  const pv = parseFloat(document.getElementById("pv").value);
+  const rate = parseFloat(document.getElementById("rate").value) / 100;
+  const years = parseInt(document.getElementById("years").value, 10);
+  const timing = document.getElementById("timing").value;
+
+  if (!Number.isFinite(pv) || !Number.isFinite(rate) || !Number.isFinite(years) || years < 0) {
+    document.getElementById("result").innerText = "輸入值有誤，請檢查 PV、利率、期數。";
+    return;
+  }
+
+  const cf = getCashflows(years);
+
+  // balances[i] = 第 i 年期末餘額（i=0..years）
+  const balances = new Array(years + 1).fill(0);
+  balances[0] = pv;
+
+  for (let i = 1; i <= years; i++) {
+    if (timing === "end") {
+      // 年末投入/流出：先長大，再加 CF_i
+      balances[i] = balances[i - 1] * (1 + rate) + cf[i];
+    } else {
+      // 年初投入/流出：先加 CF_i，再長大
+      balances[i] = (balances[i - 1] + cf[i]) * (1 + rate);
+    }
+  }
+
+  const finalFV = balances[years];
+
+  document.getElementById("result").innerText =
+    `未來值 FV（第 ${years} 年期末）= ${finalFV.toFixed(2)}`;
+
+  // 繪圖：第 0~n 年
+  const labels = [];
+  for (let i = 0; i <= years; i++) labels.push(`第 ${i} 年`);
+  drawChart(labels, balances);
+}
+
+function drawChart(labels, data) {
+  if (chart) chart.destroy();
+
+  const ctx = document.getElementById("chart").getContext("2d");
+  chart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [{
+        label: "資金成長曲線（含現金流）",
+        data,
+        fill: false,
+        tension: 0.15
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: (context) => `餘額：${Number(context.parsed.y).toFixed(2)}`
+          }
+        }
+      },
+      scales: {
+        y: {
+          ticks: {
+            callback: (val) => Number(val).toFixed(0)
+          }
+        }
+      }
+    }
+  });
+}
+
+// 預設先給兩筆範例（你也可以刪掉）
+addCashflowRow(1, 1000);  // 第1年投入 1000
+addCashflowRow(5, 3000);  // 第5年投入 3000
+</script>
+
+</body>
+</html>

@@ -1,0 +1,23 @@
+# 安裝 Shinylive 套件
+if (!requireNamespace("shinylive", quietly = TRUE)) install.packages("shinylive")
+if (!requireNamespace("httpuv", quietly = TRUE)) install.packages("httpuv")
+
+library(shinylive)
+
+# 1. 設定工作目錄 (確保 R 是在 FinLab 資料夾下執行)
+# 如果您是直接開啟專案檔 (Rproj)，通常不用這行，但保險起見可以檢查
+cat("正在編譯網站...\n")
+
+# 2. 編譯 Beta 計算機
+# 從 source_beta 讀取 -> 輸出到 beta 資料夾
+# 語法: export(appdir = "來源資料夾", destdir = "目標資料夾")
+export(appdir = "source_beta", destdir = "beta")
+
+# complete export(appdir = "source_beta", destdir = "beta").theb 
+# ℹ Run the following in an R session to serve the
+# httpuv::runStaticServer("beta")   
+
+# 3. (未來擴充) 如果 fv 或 mortgage 也是用 shinylive 做的
+# 您可以隨時把下面這些註解打開來用
+# export(appdir = "source_fv", destdir = "fv")
+# export(appdir = "source_mortgage", destdir = "mortgage")

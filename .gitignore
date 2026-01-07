@@ -1,0 +1,9 @@
+# --- 忽略原始碼資料夾 (不需上傳) ---
+source_beta/
+source_opt/
+
+# --- 忽略 R 語言暫存檔 (強烈建議加入) ---
+.Rproj.user
+.Rhistory
+.RData
+.DS_Store

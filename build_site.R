@@ -1,23 +1,31 @@
-# 安裝 Shinylive 套件
+# AIFinLab Shinylive 自動化編譯腳本
 if (!requireNamespace("shinylive", quietly = TRUE)) install.packages("shinylive")
-if (!requireNamespace("httpuv", quietly = TRUE)) install.packages("httpuv")
 
 library(shinylive)
 
-# 1. 設定工作目錄 (確保 R 是在 FinLab 資料夾下執行)
-# 如果您是直接開啟專案檔 (Rproj)，通常不用這行，但保險起見可以檢查
-cat("正在編譯網站...\n")
+# 定義要編譯的模組清單 (對應 source_xxx -> xxx)
+# modules <- c("beta", "opt")
+modules <- c("beta")
 
-# 2. 編譯 Beta 計算機
-# 從 source_beta 讀取 -> 輸出到 beta 資料夾
-# 語法: export(appdir = "來源資料夾", destdir = "目標資料夾")
-export(appdir = "source_beta", destdir = "beta")
+cat("--- AIFinLab 系統編譯啟動 ---\n")
 
-# complete export(appdir = "source_beta", destdir = "beta").theb 
-# ℹ Run the following in an R session to serve the
-# httpuv::runStaticServer("beta")   
+for (mod in modules) {
+  src_dir <- paste0("source_", mod)
+  dest_dir <- mod
+  
+  if (dir.exists(src_dir)) {
+    cat(sprintf("正在編譯模組 [%s]: %s -> %s\n", mod, src_dir, dest_dir))
+    
+    # 執行 Shinylive 輸出
+    # 建議加上 subdir = FALSE 確保檔案直接放在目錄下
+    shinylive::export(appdir = src_dir, destdir = dest_dir)
+    
+  } else {
+    cat(sprintf("警告: 找不到原始碼目錄 %s，跳過此模組。\n", src_dir))
+  }
+}
 
-# 3. (未來擴充) 如果 fv 或 mortgage 也是用 shinylive 做的
-# 您可以隨時把下面這些註解打開來用
-# export(appdir = "source_fv", destdir = "fv")
-# export(appdir = "source_mortgage", destdir = "mortgage")
+cat("--- AIFinLab 編譯完成 ---\n")
+
+# httpuv::runStaticServer("beta",port = 8001)
+# httpuv::runStaticServer("opt",port = 8002)

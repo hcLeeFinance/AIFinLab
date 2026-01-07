@@ -1,0 +1,13 @@
+AIFinLab/ (專案根目錄)
+│
+├── build_site.R           # [核心腳本] 自動化編譯器
+├── index.html             # [入口網站] 戰情室首頁
+├── shared/                # [共用資源] CSS, JS, utils.R
+│
+├── fv/                    # [部署檔] 舊功能 (靜態)
+├── mortgage/              # [部署檔] 舊功能 (靜態)
+├── beta/                  # [部署檔] 由 source_beta 編譯生成
+├── opt/                   # [部署檔] 由 source_opt 編譯生成 (或保留空資料夾)
+│
+├── source_beta/           # [原始碼] Beta 功能開發區
+└── source_opt/            # [原始碼] OptEF 功能開發區

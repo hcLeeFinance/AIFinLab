@@ -16,11 +16,12 @@
         /* Container */
         .container { max-width: 1000px; margin: -30px auto 40px; padding: 0 20px; position: relative; z-index: 10; }
 
-        /* Grid System (這是自動排版的關鍵，不建議用分隔線破壞它) */
+        /* --- 核心修改區：強制 2x2 排版 --- */
         .grid { 
             display: grid; 
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); 
-            gap: 30px; /* 卡片之間的間距，這就是最好的分隔 */
+            /* 這裡設定 repeat(2, 1fr) 強制分為兩欄，每欄各佔 50% */
+            grid-template-columns: repeat(2, 1fr); 
+            gap: 30px; 
         }
 
         /* Cards */
@@ -32,26 +33,39 @@
         /* Buttons */
         .btn { display: inline-block; text-align: center; padding: 12px 0; width: 100%; border-radius: 6px; text-decoration: none; font-weight: 600; transition: background-color 0.2s; cursor: pointer; }
 
-        /* --- App 1: FV (藍色系 - 穩健增長) --- */
+        /* --- App 1: FV (藍色系) --- */
         .card.fv { border-top-color: #0969da; }
         .card.fv h3::before { content: "🚀"; font-size: 1.2em; }
         .card.fv .btn { background-color: #0969da; color: white; }
         .card.fv .btn:hover { background-color: #0356b6; }
 
-        /* --- App 2: Mortgage (綠色系 - 資產規劃) --- */
+        /* --- App 2: Mortgage (綠色系) --- */
         .card.mortgage { border-top-color: #2ea44f; }
         .card.mortgage h3::before { content: "🏠"; font-size: 1.2em; }
         .card.mortgage .btn { background-color: #2ea44f; color: white; }
         .card.mortgage .btn:hover { background-color: #2c974b; }
 
-        /* --- App 3: Beta (橘紅色系 - 風險管理) --- */
-        /* 這是新增的部分 */
+        /* --- App 3: Beta (橘紅色系) --- */
         .card.beta { border-top-color: #cf222e; }
         .card.beta h3::before { content: "📊"; font-size: 1.2em; }
         .card.beta .btn { background-color: #cf222e; color: white; }
         .card.beta .btn:hover { background-color: #a40e26; }
 
+        /* --- App 4: OptEF (紫色系) --- */
+        .card.opt { border-top-color: #8250df; }
+        .card.opt h3::before { content: "🎯"; font-size: 1.2em; }
+        .card.opt .btn { background-color: #8250df; color: white; }
+        .card.opt .btn:hover { background-color: #6e40c9; }
+
         footer { text-align: center; padding: 40px; color: #6e7781; font-size: 0.9rem; border-top: 1px solid #eaecef; margin-top: 40px; }
+
+        /* --- 手機版響應式設計 --- */
+        /* 當螢幕寬度小於 768px (平板或手機) 時，強制變回單欄，避免太擠 */
+        @media (max-width: 768px) {
+            .grid { 
+                grid-template-columns: 1fr; 
+            }
+        }
     </style>
 </head>
 <body>
@@ -88,10 +102,18 @@
             <a href="beta/index.html" class="btn">進入風險分析 &rarr;</a>
         </div>
 
+        <div class="card opt">
+            <div>
+                <h3>投資組合最佳化 (OptEF)</h3>
+                <p>整合效率前緣 (Efficient Frontier) 理論。協助您計算在不同風險水平下的最佳資產配置權重。</p>
+            </div>
+            <a href="https://hclee.shinyapps.io/OptEF/" target="_blank" class="btn">啟動最佳化引擎 &rarr;</a>
+        </div>
+
     </div>
 </div>
 
-<footer>© 2026 FinLab Project. Powered by GitHub Pages & R-Shinylive.</footer>
+<footer>© 2026 FinLab Project. Powered by GitHub Pages & R-Shiny.</footer>
 
 </body>
 </html>

@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DCA vs Lump Sum 同額本金比較 (JS版)</title>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+        body { font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f0f2f5; padding: 20px; color: #333; }
+        .container { max-width: 1280px; margin: 0 auto; background: white; padding: 30px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border-radius: 12px; }
+        h1 { color: #1a202c; margin-bottom: 5px; font-weight: 700; }
+        p.subtitle { color: #718096; margin-top: 0; margin-bottom: 25px; font-size: 0.95em; }
+        
+        /* 控制面板 */
+        .control-panel { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 20px; margin-bottom: 25px; padding: 25px; background-color: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0; }
+        .form-group { display: flex; flex-direction: column; }
+        label { margin-bottom: 8px; font-weight: 600; font-size: 0.85em; color: #4a5568; text-transform: uppercase; letter-spacing: 0.5px; }
+        input, select { padding: 10px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 15px; transition: border-color 0.2s; }
+        input:focus, select:focus { outline: none; border-color: #3182ce; box-shadow: 0 0 0 3px rgba(66,153,225,0.2); }
+        
+        button { 
+            grid-column: 1 / -1; 
+            padding: 12px; 
+            background: linear-gradient(135deg, #3182ce 0%, #2c5282 100%); 
+            color: white; border: none; border-radius: 6px; 
+            cursor: pointer; font-size: 16px; font-weight: 600; 
+            box-shadow: 0 4px 6px rgba(50, 50, 93, 0.11), 0 1px 3px rgba(0, 0, 0, 0.08); 
+            transition: all 0.2s; 
+        }
+        button:hover { transform: translateY(-1px); box-shadow: 0 7px 14px rgba(50, 50, 93, 0.1), 0 3px 6px rgba(0, 0, 0, 0.08); }
+        button:disabled { background: #cbd5e0; cursor: not-allowed; transform: none; box-shadow: none; }
+        
+        /* 統計區塊表格化 */
+        .stats-container { margin-top: 25px; overflow-x: auto; }
+        table.stats-table { width: 100%; border-collapse: collapse; font-family: 'Segoe UI', sans-serif; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        table.stats-table th, table.stats-table td { padding: 12px 15px; text-align: right; border-bottom: 1px solid #e2e8f0; }
+        table.stats-table th:first-child, table.stats-table td:first-child { text-align: left; font-weight: 600; color: #4a5568; background-color: #f7fafc; width: 220px; }
+        table.stats-table th { background-color: #2d3748; color: white; font-weight: 600; text-transform: uppercase; font-size: 0.9em; letter-spacing: 0.05em; }
+        
+        /* 策略顏色標示 */
+        .col-dca { border-top: 3px solid #3182ce; background-color: #ebf8ff; color: #2c5282; font-weight: bold; }
+        .col-ls { border-top: 3px solid #ed8936; background-color: #fffaf0; color: #c05621; font-weight: bold; }
+        
+        .loading { color: #2b6cb0; font-weight: bold; }
+        .error { color: #c53030; font-weight: bold; background: #fff5f5; padding: 10px; border-radius: 4px; border: 1px solid #feb2b2; }
+        
+        #chartDiv { width: 100%; height: 600px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>💰 Lump-Sum vs. DCA 比較回測</h1>
+    <p class="subtitle">比較「定期定額」與「同額本金期初單筆投入」之績效差異</p>
+
+    <div class="control-panel">
+        <div class="form-group">
+            <label>股票代碼 (Ticker)</label>
+            <input type="text" id="symb" value="SPY" placeholder="e.g. SPY, 0050.TW">
+        </div>
+        <div class="form-group">
+            <label>開始日期</label>
+            <input type="date" id="startDate" value="2010-01-01">
+        </div>
+        <div class="form-group">
+            <label>結束日期</label>
+            <input type="date" id="endDate">
+        </div>
+        <div class="form-group">
+            <label>初始金額 (IA)</label>
+            <input type="number" id="IA" value="100000" step="1000">
+        </div>
+        <div class="form-group">
+            <label>定期定額年金額 (CFA)</label>
+            <input type="number" id="CFA" value="120000" step="1000">
+        </div>
+        <div class="form-group">
+            <label>投資頻率 (Freq)</label>
+            <select id="Freq">
+                <option value="weeks">每週 (Weeks)</option>
+                <option value="months" selected>每月 (Months)</option>
+                <option value="quarters">每季 (Quarters)</option>
+                <option value="years">每年 (Years)</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>投入時間點 (Timing)</label>
+            <select id="CFATiming">
+                <option value="End" selected>期末 (End)</option>
+                <option value="First">期初 (First)</option>
+            </select>
+        </div>
+        <button id="btnRun">執行比較分析 (Run Comparison)</button>
+    </div>
+
+    <div id="statusMessage"></div>
+    <div id="chartDiv"></div>
+    
+    <h3 style="margin-top:30px; color:#2c5282;">📊 績效對照表 (Performance Comparison)</h3>
+    <div id="stats-panel" class="stats-container">請先執行回測...</div>
+</div>
+
+<script>
+// --- 1. 設定與工具函數 ---
+
+document.getElementById('endDate').valueAsDate = new Date();
+const CORS_PROXY = "https://corsproxy.io/?"; 
+
+const safeNum = (v) => (typeof v === 'number' && !isNaN(v)) ? v : null;
+const toISODate = (ts) => new Date(ts * 1000).toISOString().split('T')[0];
+
+const formatCurrency = (num) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(num);
+const formatPercent = (num) => (num * 100).toFixed(2) + '%';
+
+// --- 2. 資料獲取層 ---
+
+async function fetchYahooDaily(sym, startISO, endISO) {
+    const p1 = Math.floor(new Date(startISO).getTime() / 1000);
+    const p2 = Math.floor(new Date(endISO).getTime() / 1000) + 86400;
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?period1=${p1}&period2=${p2}&interval=1d&events=history`;
+
+    console.log(`Fetching: ${url}`);
+    
+    try {
+        const res = await fetch(CORS_PROXY + encodeURIComponent(url));
+        if (!res.ok) throw new Error(`${sym} Yahoo HTTP ${res.status}`);
+        const json = await res.json();
+
+        const result = json?.chart?.result?.[0];
+        if (!result) throw new Error(`${sym} 抓取失敗（回傳格式異常或無資料）`);
+
+        const ts = result.timestamp || [];
+        const prices = result.indicators?.adjclose?.[0]?.adjclose || 
+                       result.indicators?.quote?.[0]?.close || [];
+
+        const out = [];
+        for (let i = 0; i < ts.length; i++) {
+            const dateStr = toISODate(ts[i]);
+            const price = safeNum(prices[i]);
+            if (price !== null) {
+                out.push({ date: new Date(dateStr), price: price, dateStr: dateStr });
+            }
+        }
+        return out;
+    } catch (e) {
+        console.error(e);
+        throw e;
+    }
+}
+
+// --- 3. 資料處理層 (Resample) ---
+
+function resampleData(dailyData, freq) {
+    if (dailyData.length === 0) return [];
+    const grouped = [];
+    let currentGroupKey = null;
+    let tempGroup = [];
+
+    const getGroupKey = (date, f) => {
+        const d = new Date(date);
+        const y = d.getFullYear();
+        const m = d.getMonth();
+        const firstDayOfYear = new Date(y, 0, 1);
+        const pastDaysOfYear = (d - firstDayOfYear) / 86400000;
+        const w = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+        const q = Math.floor(m / 3);
+        
+        if (f === 'years') return `${y}`;
+        if (f === 'quarters') return `${y}-Q${q}`;
+        if (f === 'months') return `${y}-${m}`;
+        if (f === 'weeks') return `${y}-W${w}`;
+        return date.toISOString();
+    };
+
+    for (let item of dailyData) {
+        const key = getGroupKey(item.date, freq);
+        if (key !== currentGroupKey) {
+            if (currentGroupKey !== null) grouped.push(tempGroup);
+            tempGroup = [];
+            currentGroupKey = key;
+        }
+        tempGroup.push(item);
+    }
+    if (tempGroup.length > 0) grouped.push(tempGroup);
+
+    return grouped.map(g => g[g.length - 1]); 
+}
+
+// --- 4. 財金邏輯層 ---
+
+function calculateStrategy(priceData, IA, CFA, freq, isLumpSumMode = false, predefinedTotalInvested = null) {
+    let adjF = 1;
+    if (freq === 'weeks') adjF = 52;
+    else if (freq === 'months') adjF = 12;
+    else if (freq === 'quarters') adjF = 4;
+    else if (freq === 'years') adjF = 1;
+
+    const returns = [];
+    for (let i = 1; i < priceData.length; i++) {
+        const r = (priceData[i].price / priceData[i-1].price) - 1;
+        returns.push(r);
+    }
+
+    const wealthHistory = [];
+    let currentWealth = IA;
+    let totalInvested = IA;
+    const periodicInvest = isLumpSumMode ? 0 : CFA * (1/adjF);
+
+    wealthHistory.push({ 
+        date: priceData[0].dateStr, 
+        wealth: IA, 
+        invested: IA 
+    });
+
+    const n = returns.length;
+    for (let i = 0; i < n; i++) {
+        const r = returns[i];
+        currentWealth = currentWealth * (1 + r);
+        currentWealth += periodicInvest;
+        totalInvested += periodicInvest;
+        
+        wealthHistory.push({
+            date: priceData[i+1].dateStr,
+            wealth: currentWealth,
+            invested: totalInvested
+        });
+    }
+
+    const wealthReturns = [];
+    for(let i=1; i<wealthHistory.length; i++){
+        wealthReturns.push( (wealthHistory[i].wealth / wealthHistory[i-1].wealth) - 1 );
+    }
+
+    const mean = arr => arr.reduce((a,b)=>a+b, 0) / arr.length;
+    const std = arr => {
+        const m = mean(arr);
+        if(arr.length < 2) return 0;
+        return Math.sqrt(arr.reduce((a,b)=>a + Math.pow(b-m,2), 0) / (arr.length - 1));
+    };
+    
+    const finalWealth = wealthHistory[wealthHistory.length-1].wealth;
+    const r_CAGR = adjF * (Math.pow(finalWealth / totalInvested, 1/wealthReturns.length) - 1);
+    const r_Vol = Math.sqrt(adjF) * std(wealthReturns);
+    
+    let maxWealth = -Infinity;
+    let maxDD = 0;
+    for (let w of wealthHistory) {
+        if (w.wealth > maxWealth) maxWealth = w.wealth;
+        const dd = (w.wealth - maxWealth) / maxWealth;
+        if (dd < maxDD) maxDD = dd;
+    }
+
+    return {
+        history: wealthHistory,
+        stats: {
+            finalWealth, 
+            totalInvested,
+            profit: finalWealth - totalInvested,
+            cagr: r_CAGR, 
+            vol: r_Vol,
+            maxDD,
+            ratio: finalWealth / totalInvested
+        }
+    };
+}
+
+// --- 5. 主控制邏輯 ---
+
+document.getElementById('btnRun').addEventListener('click', async () => {
+    const btn = document.getElementById('btnRun');
+    const msg = document.getElementById('statusMessage');
+    const statsDiv = document.getElementById('stats-panel');
+    const plotDiv = document.getElementById('chartDiv');
+
+    const symb = document.getElementById('symb').value.toUpperCase();
+    const start = document.getElementById('startDate').value;
+    const end = document.getElementById('endDate').value;
+    const IA = parseFloat(document.getElementById('IA').value);
+    const CFA = parseFloat(document.getElementById('CFA').value);
+    const freq = document.getElementById('Freq').value;
+
+    if(!symb) { alert("請輸入股票代碼"); return; }
+
+    try {
+        btn.disabled = true;
+        msg.innerHTML = '<span class="loading">正在下載與計算...</span>';
+
+        const rawData = await fetchYahooDaily(symb, start, end);
+        if(rawData.length === 0) throw new Error("無數據返回");
+        const resampledData = resampleData(rawData, freq);
+
+        const dcaResult = calculateStrategy(resampledData, IA, CFA, freq, false);
+        const totalCapital = dcaResult.stats.totalInvested;
+        const lsResult = calculateStrategy(resampledData, totalCapital, 0, freq, true);
+
+        // --- 繪圖 (Plotly) ---
+        
+        const traceDCA = {
+            x: dcaResult.history.map(d => d.date),
+            y: dcaResult.history.map(d => d.wealth),
+            type: 'scatter', mode: 'lines', name: 'DCA 策略淨值 (Wealth)',
+            line: { color: '#3182ce', width: 2 },
+            fill: 'tozeroy', fillcolor: 'rgba(49, 130, 206, 0.1)',
+            hovertemplate: '<b>DCA Wealth</b>: $%{y:,.0f}<extra></extra>'
+        };
+
+        const traceDCACost = {
+            x: dcaResult.history.map(d => d.date),
+            y: dcaResult.history.map(d => d.invested),
+            type: 'scatter', mode: 'lines', name: 'DCA 累積投入成本',
+            line: { color: '#3182ce', width: 1.5, dash: 'dot' },
+            hovertemplate: 'DCA Cost: $%{y:,.0f}<extra></extra>'
+        };
+
+        const traceLS = {
+            x: lsResult.history.map(d => d.date),
+            y: lsResult.history.map(d => d.wealth),
+            type: 'scatter', mode: 'lines', name: 'Lump Sum 策略淨值 (Wealth)',
+            line: { color: '#ed8936', width: 2 },
+            hovertemplate: '<b>Lump Sum Wealth</b>: $%{y:,.0f}<extra></extra>'
+        };
+        
+        const traceLSCost = {
+            x: lsResult.history.map(d => d.date),
+            y: lsResult.history.map(d => d.invested),
+            type: 'scatter', mode: 'lines', name: 'Lump Sum 成本',
+            line: { color: '#ed8936', width: 1.5, dash: 'dot' },
+            hovertemplate: 'LS Cost: $%{y:,.0f}<extra></extra>'
+        };
+
+        const layout = {
+            font: { family: 'Segoe UI, sans-serif' },
+            paper_bgcolor: 'white',
+            plot_bgcolor: 'white',
+            hovermode: 'x unified',
+            xaxis: { 
+                title: 'Date', showgrid: true, gridcolor: '#edf2f7',
+                rangeslider: { visible: true }
+            },
+            yaxis: { 
+                title: 'Amount (USD)', showgrid: true, gridcolor: '#edf2f7',
+                tickformat: '$,.0f' 
+            },
+            legend: { orientation: 'h', y: 1.1 },
+            margin: { l: 60, r: 60, t: 30, b: 60 },
+            // --- 重點修正：箭頭標註 (Annotations) ---
+            annotations: [
+                {
+                    x: dcaResult.history[dcaResult.history.length-1].date,
+                    y: dcaResult.stats.finalWealth,
+                    xref: 'x', yref: 'y',
+                    // 設定箭頭：垂直向下，帶背景色
+                    text: `<b>DCA Final</b><br>$${new Intl.NumberFormat().format(Math.round(dcaResult.stats.finalWealth))}`,
+                    showarrow: true,
+                    arrowhead: 2, // 樣式2比較尖銳好看
+                    arrowsize: 1,
+                    arrowwidth: 2,
+                    arrowcolor: '#3182ce',
+                    ax: 0, 
+                    ay: -60, // 負值代表文字在上方，箭頭向下指
+                    bgcolor: "rgba(255,255,255,0.85)", // 半透明白色背景
+                    font: {color: '#3182ce', size: 13}
+                },
+                {
+                    x: lsResult.history[lsResult.history.length-1].date,
+                    y: lsResult.stats.finalWealth,
+                    xref: 'x', yref: 'y',
+                    text: `<b>LS Final</b><br>$${new Intl.NumberFormat().format(Math.round(lsResult.stats.finalWealth))}`,
+                    showarrow: true,
+                    arrowhead: 2,
+                    arrowsize: 1,
+                    arrowwidth: 2,
+                    arrowcolor: '#ed8936',
+                    ax: 0,
+                    ay: -80, // Lump Sum 通常較高，拉高一點避免重疊
+                    bgcolor: "rgba(255,255,255,0.85)",
+                    font: {color: '#c05621', size: 13}
+                }
+            ]
+        };
+
+        Plotly.newPlot(plotDiv, [traceDCACost, traceLSCost, traceDCA, traceLS], layout, {responsive: true});
+
+        const sDCA = dcaResult.stats;
+        const sLS = lsResult.stats;
+        const diffWealth = sLS.finalWealth - sDCA.finalWealth;
+        const winner = diffWealth > 0 ? "Lump Sum (單筆投入)" : "DCA (定期定額)";
+        const diffColor = diffWealth > 0 ? "#ed8936" : "#3182ce";
+
+        // --- 重點修正：加入 CAGR/Volatility 指標 ---
+        const dcaRatio = sDCA.cagr / sDCA.vol;
+        const lsRatio = sLS.cagr / sLS.vol;
+
+        const htmlTable = `
+        <table class="stats-table">
+            <thead>
+                <tr>
+                    <th>指標 (Metrics)</th>
+                    <th class="col-dca">DCA 策略 (定期定額)</th>
+                    <th class="col-ls">Lump Sum 策略 (期初單筆)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>總投入本金 (Total Invested)</td>
+                    <td>${formatCurrency(sDCA.totalInvested)} (累計)</td>
+                    <td>${formatCurrency(sLS.totalInvested)} (期初一次)</td>
+                </tr>
+                <tr>
+                    <td><b>期末總資產 (Final Wealth)</b></td>
+                    <td style="color:#3182ce; font-size:1.1em; font-weight:bold;">${formatCurrency(sDCA.finalWealth)}</td>
+                    <td style="color:#c05621; font-size:1.1em; font-weight:bold;">${formatCurrency(sLS.finalWealth)}</td>
+                </tr>
+                <tr>
+                    <td>總獲利 (Total Profit)</td>
+                    <td>${formatCurrency(sDCA.profit)}</td>
+                    <td>${formatCurrency(sLS.profit)}</td>
+                </tr>
+                <tr>
+                    <td>總報酬率 (Total Return)</td>
+                    <td>${formatPercent((sDCA.finalWealth/sDCA.totalInvested)-1)}</td>
+                    <td>${formatPercent((sLS.finalWealth/sLS.totalInvested)-1)}</td>
+                </tr>
+                <tr>
+                    <td>年化報酬率 (CAGR)</td>
+                    <td>${formatPercent(sDCA.cagr)}</td>
+                    <td>${formatPercent(sLS.cagr)}</td>
+                </tr>
+                <tr>
+                    <td>最大回撤 (Max Drawdown)</td>
+                    <td>${formatPercent(sDCA.maxDD)}</td>
+                    <td>${formatPercent(sLS.maxDD)}</td>
+                </tr>
+                <tr>
+                    <td>年化波動率 (Volatility)</td>
+                    <td>${formatPercent(sDCA.vol)}</td>
+                    <td>${formatPercent(sLS.vol)}</td>
+                </tr>
+                <tr style="background-color:#fffbea; border-top:2px solid #edf2f7;">
+                    <td><b>報酬風險比 (CAGR / Volatility)</b></td>
+                    <td><b>${dcaRatio.toFixed(2)}</b></td>
+                    <td><b>${lsRatio.toFixed(2)}</b></td>
+                </tr>
+            </tbody>
+        </table>
+        <div style="margin-top:15px; padding:15px; background:${diffColor}15; border-left:5px solid ${diffColor}; color:${diffColor==="#ed8936"?"#c05621":"#2c5282"}">
+            <strong>💡 結論：</strong> 在此區間內，<b>${winner}</b> 表現較佳，
+            終值多出 <b>${formatCurrency(Math.abs(diffWealth))}</b>。
+        </div>
+        `;
+        
+        statsDiv.innerHTML = htmlTable;
+        msg.innerText = "比較分析完成。";
+
+    } catch (err) {
+        msg.innerHTML = `<span class="error">錯誤: ${err.message}</span>`;
+        console.error(err);
+    } finally {
+        btn.disabled = false;
+    }
+});
+</script>
+
+</body>
+</html>

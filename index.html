@@ -45,13 +45,19 @@
         .card.mortgage .btn { background-color: #2ea44f; color: white; }
         .card.mortgage .btn:hover { background-color: #2c974b; }
 
-        /* --- App 3: Beta (橘紅色系) --- */
+        /* --- App 3: DCA (橘色系 - 新增) --- */
+        .card.dca { border-top-color: #ed8936; }
+        .card.dca h3::before { content: "⚖️"; font-size: 1.2em; }
+        .card.dca .btn { background-color: #ed8936; color: white; }
+        .card.dca .btn:hover { background-color: #dd6b20; }
+
+        /* --- App 4: Beta (紅色系) --- */
         .card.beta { border-top-color: #cf222e; }
         .card.beta h3::before { content: "📊"; font-size: 1.2em; }
         .card.beta .btn { background-color: #cf222e; color: white; }
         .card.beta .btn:hover { background-color: #a40e26; }
 
-        /* --- App 4: OptEF (紫色系) --- */
+        /* --- App 5: OptEF (紫色系) --- */
         .card.opt { border-top-color: #8250df; }
         .card.opt h3::before { content: "🎯"; font-size: 1.2em; }
         .card.opt .btn { background-color: #8250df; color: white; }
@@ -94,6 +100,14 @@
             <a href="mortgage/index.html" class="btn">開始分析房貸 &rarr;</a>
         </div>
 
+        <div class="card dca">
+            <div>
+                <h3>DCA vs 單筆投入 (DCA)</h3>
+                <p>比較定期定額與單筆投入的績效差異。包含視覺化歷史回測、勝率分析與 Sharpe/Sortino 指標。</p>
+            </div>
+            <a href="dca/index.html" class="btn">進入策略比較 &rarr;</a>
+        </div>
+
         <div class="card beta">
             <div>
                 <h3>Beta 風險係數 (CAPM)</h3>
@@ -107,7 +121,7 @@
                 <h3>投資組合最佳化 (OptEF)</h3>
                 <p>整合效率前緣 (Efficient Frontier) 理論。協助您計算在不同風險水平下的最佳資產配置權重。</p>
             </div>
-            <a href="https://hclee.shinyapps.io/OptEF/" target="_blank" class="btn">啟動最佳化引擎 &rarr;</a>
+            <a href="opt/index.html" class="btn">啟動最佳化引擎 &rarr;</a>
         </div>
 
     </div>

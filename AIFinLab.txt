@@ -6,6 +6,7 @@ AIFinLab/ (專案根目錄)
 │
 ├── fv/                    # [部署檔] 舊功能 (靜態)
 ├── mortgage/              # [部署檔] 舊功能 (靜態)
+├── dca/                   # [部署檔] DCA vs 單筆策略比較
 ├── beta/                  # [部署檔] 由 source_beta 編譯生成
 ├── opt/                   # [部署檔] 由 source_opt 編譯生成 (或保留空資料夾)
 │

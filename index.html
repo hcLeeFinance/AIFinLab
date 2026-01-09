@@ -16,10 +16,10 @@
         /* Container */
         .container { max-width: 1000px; margin: -30px auto 40px; padding: 0 20px; position: relative; z-index: 10; }
 
-        /* --- 核心修改區：強制 2x2 排版 --- */
+        /* --- 核心排版：強制 2x2 --- */
         .grid { 
             display: grid; 
-            /* 這裡設定 repeat(2, 1fr) 強制分為兩欄，每欄各佔 50% */
+            /* 強制分為兩欄，每欄各佔 50% */
             grid-template-columns: repeat(2, 1fr); 
             gap: 30px; 
         }
@@ -45,7 +45,7 @@
         .card.mortgage .btn { background-color: #2ea44f; color: white; }
         .card.mortgage .btn:hover { background-color: #2c974b; }
 
-        /* --- App 3: DCA (橘色系 - 新增) --- */
+        /* --- App 3: DCA (橘色系) --- */
         .card.dca { border-top-color: #ed8936; }
         .card.dca h3::before { content: "⚖️"; font-size: 1.2em; }
         .card.dca .btn { background-color: #ed8936; color: white; }
@@ -66,7 +66,6 @@
         footer { text-align: center; padding: 40px; color: #6e7781; font-size: 0.9rem; border-top: 1px solid #eaecef; margin-top: 40px; }
 
         /* --- 手機版響應式設計 --- */
-        /* 當螢幕寬度小於 768px (平板或手機) 時，強制變回單欄，避免太擠 */
         @media (max-width: 768px) {
             .grid { 
                 grid-template-columns: 1fr; 
@@ -121,11 +120,7 @@
                 <h3>投資組合最佳化 (OptEF)</h3>
                 <p>整合效率前緣 (Efficient Frontier) 理論。協助您計算在不同風險水平下的最佳資產配置權重。</p>
             </div>
-<<<<<<< HEAD
-            <a href="opt/index.html" class="btn">啟動最佳化引擎 &rarr;</a>
-=======
             <a href="https://xtg4qp.csb.app/" target="_blank" class="btn">啟動最佳化引擎 &rarr;</a>
->>>>>>> 829a1d296f4d031f34871105bc83429259c360e3
         </div>
 
     </div>

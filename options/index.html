@@ -1,0 +1,1721 @@
+<!DOCTYPE html>
+
+<html lang="zh-TW">
+
+<head>
+
+  <meta charset="UTF-8" />
+
+  <title>Option Strategy Analyzer (Fixed Greeks Display)</title>
+
+
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+
+
+
+  <style>
+
+    :root{
+
+      --bg-dark:#0f172a; --panel-dark:#1e293b; --card-dark:#334155;
+
+      --primary:#6366f1; --accent:#22d3ee; --iv-green:#10b981;
+
+      --text-main:#f1f5f9; --text-muted:#94a3b8;
+
+      --profit-green:#10b981; --loss-red:#ef4444; --be-purple:#d946ef;
+
+    }
+
+    body{
+
+      margin:0;
+
+      font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+
+      background:var(--bg-dark);
+
+      color:var(--text-main);
+
+      height:100vh;
+
+      display:flex;
+
+      flex-direction:column;
+
+    }
+
+    h2{
+
+      background:#1e293b;
+
+      color:var(--accent);
+
+      padding:12px 24px;
+
+      font-size:1.1rem;
+
+      margin:0;
+
+      border-bottom:1px solid #334155;
+
+    }
+
+    .tabs{
+
+      display:flex;
+
+      flex-wrap:wrap;
+
+      background:#1e293b;
+
+      padding:8px 16px;
+
+      gap:8px;
+
+      border-bottom:1px solid #334155;
+
+    }
+
+    .tab-btn{
+
+      background:transparent;
+
+      border:1px solid transparent;
+
+      color:var(--text-muted);
+
+      padding:6px 14px;
+
+      cursor:pointer;
+
+      border-radius:6px;
+
+      transition:0.2s;
+
+      font-size:0.85rem;
+
+    }
+
+    .tab-btn:hover{ background:#334155; color:#fff; }
+
+    .tab-btn.active{ background:var(--primary); color:#fff; border-color:var(--primary); font-weight:600; }
+
+
+
+    .grid{
+
+      display:grid;
+
+      grid-template-columns:350px 1fr;
+
+      gap:16px;
+
+      padding:16px;
+
+      flex:1;
+
+      min-height:0;
+
+      overflow:hidden;
+
+    }
+
+    .panel{
+
+      border-radius:12px;
+
+      padding:16px;
+
+      background:var(--panel-dark);
+
+      overflow-y:auto;
+
+      border:1px solid #334155;
+
+      display:flex;
+
+      flex-direction:column;
+
+      min-height:0;
+
+    }
+
+    .panel.chart{
+
+      background:#fff;
+
+      color:#1e293b;
+
+      padding:0;
+
+      position:relative;
+
+      overflow:hidden;
+
+      min-height:640px; 
+
+    }
+
+
+
+    .section-title{
+
+      font-size:.75rem;
+
+      color:var(--accent);
+
+      text-transform:uppercase;
+
+      letter-spacing:1px;
+
+      margin:20px 0 8px 0;
+
+      font-weight:700;
+
+      border-left:3px solid var(--accent);
+
+      padding-left:8px;
+
+    }
+
+    .section-title:first-child{ margin-top:0; }
+
+
+
+    .control-group{
+
+      background:var(--card-dark);
+
+      border-radius:8px;
+
+      padding:10px;
+
+      margin-bottom:10px;
+
+      border:1px solid #475569;
+
+    }
+
+    .control-group label{
+
+      font-size:.7rem;
+
+      color:var(--text-muted);
+
+      display:block;
+
+      margin-bottom:4px;
+
+      font-weight:500;
+
+    }
+
+    .control-group input, .control-group select{
+
+      width:100%;
+
+      background:#0f172a;
+
+      border:1px solid #64748b;
+
+      border-radius:4px;
+
+      padding:6px 8px;
+
+      color:#fff;
+
+      box-sizing:border-box;
+
+      font-size:0.9rem;
+
+    }
+
+    .control-group input:focus{ border-color:var(--primary); outline:none; }
+
+
+
+    .row2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+
+    .row3{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
+
+
+
+    .iv-box{ border:1px dashed var(--iv-green); background:rgba(16,185,129,0.08); }
+
+    .sync-btn{
+
+      width:100%;
+
+      background:#475569;
+
+      color:#fff;
+
+      border:none;
+
+      padding:8px;
+
+      border-radius:4px;
+
+      margin-top:8px;
+
+      cursor:pointer;
+
+      font-size:.75rem;
+
+      transition:0.2s;
+
+      font-weight:600;
+
+    }
+
+    .sync-btn:hover{ background:var(--iv-green); }
+
+
+
+    .radio-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+
+    .radio-grid label{
+
+      background:var(--card-dark);
+
+      padding:8px 4px;
+
+      border-radius:6px;
+
+      cursor:pointer;
+
+      text-align:center;
+
+      font-size:.75rem;
+
+      border:1px solid #475569;
+
+      transition:0.2s;
+
+    }
+
+    .radio-grid label:hover{ background:#334155; }
+
+    .radio-grid input{ display:none; }
+
+    .radio-grid input:checked + span{ color:var(--accent); font-weight:bold; }
+
+    .radio-grid input:checked + span::before{ content:"● "; color:var(--accent); }
+
+
+
+    #chart-header{
+
+      display:flex;
+
+      gap:15px;
+
+      padding:12px 20px;
+
+      background:#f8fafc;
+
+      border-bottom:1px solid #e2e8f0;
+
+      min-height:30px;
+
+      align-items:center;
+
+      flex-wrap:wrap;
+
+    }
+
+    .legend-indicator{
+
+      display:flex;
+
+      align-items:center;
+
+      gap:6px;
+
+      font-size:.8rem;
+
+      font-weight:600;
+
+      color:#475569;
+
+    }
+
+    .line-solid{ width:20px; height:3px; border-radius:2px; }
+
+    .line-dashed{ width:20px; height:0; border-top:2px dashed #94a3b8; }
+
+
+
+    .chart-wrapper{
+
+      flex:1;
+
+      position:relative;
+
+      width:100%;
+
+      min-height:420px;
+
+      height:520px;
+
+    }
+
+    canvas{ width:100% !important; height:100% !important; }
+
+
+
+    #strategy-console{
+
+      padding:15px 20px;
+
+      background:#f1f5f9;
+
+      border-top:1px solid #e2e8f0;
+
+      min-height:120px;
+
+    }
+
+    .console-title{
+
+      font-size:1.1rem;
+
+      font-weight:bold;
+
+      color:#0f172a;
+
+      margin-bottom:8px;
+
+    }
+
+    .strat-def-box {
+
+      background:#e0e7ff;
+
+      border-left:4px solid var(--primary);
+
+      padding:10px 12px;
+
+      border-radius:4px;
+
+      font-size:0.85rem;
+
+      color:#374151;
+
+      margin-bottom:15px;
+
+      line-height:1.4;
+
+    }
+
+    .data-cards{ display:flex; gap:12px; flex-wrap:wrap; }
+
+    .data-card{
+
+      background:#fff;
+
+      padding:10px 14px;
+
+      border-radius:8px;
+
+      border:1px solid #e2e8f0;
+
+      min-width:140px;
+
+      display:flex;
+
+      flex-direction:column;
+
+      box-shadow:0 1px 2px rgba(0,0,0,0.05);
+
+    }
+
+    .dc-label{
+
+      font-size:.7rem;
+
+      color:#64748b;
+
+      text-transform:uppercase;
+
+      margin-bottom:3px;
+
+      font-weight:600;
+
+    }
+
+    .dc-val{
+
+      font-family:'Monaco', 'Consolas', monospace;
+
+      font-size:1.05rem;
+
+      font-weight:bold;
+
+      color:#0f172a;
+
+    }
+
+    .muted{ color:#94a3b8; font-size:0.7rem; margin-top:5px; font-style:italic; }
+
+    .hidden{ display:none !important; }
+
+  </style>
+
+</head>
+
+
+
+<body>
+
+  <h2>Option Strategy & IV Analyzer</h2>
+
+
+
+  <div class="tabs">
+
+    <button class="tab-btn active" id="btn-single"   onclick="setMode('single')">單一期權</button>
+
+    <button class="tab-btn"        id="btn-straddle" onclick="setMode('straddle')">跨式 (Straddle)</button>
+
+    <button class="tab-btn"        id="btn-strangle" onclick="setMode('strangle')">勒式 (Strangle)</button>
+
+    <button class="tab-btn"        id="btn-calendar" onclick="setMode('calendar')">日曆 (Calendar)</button>
+
+    <button class="tab-btn"        id="btn-bull"     onclick="setMode('bull')">多頭價差 (Bull)</button>
+
+    <button class="tab-btn"        id="btn-bear"     onclick="setMode('bear')">空頭價差 (Bear)</button>
+
+  </div>
+
+
+
+  <div class="grid">
+
+    <div class="panel controls">
+
+
+
+      <div class="section-title">1. Market Implied Volatility</div>
+
+      <div class="control-group iv-box">
+
+        <label style="color:var(--iv-green);font-weight:bold;">市場成交價 (Market Price)</label>
+
+        <input type="number" id="mkt_price" value="3.5" step="0.1" oninput="calculateOnlyIV(); scheduleUpdate();">
+
+        <div style="margin-top:8px;font-size:.8rem;display:flex;justify-content:space-between;align-items:center;">
+
+          <span>反推 IV (Leg 1):</span>
+
+          <span id="iv_res" style="color:var(--iv-green);font-weight:bold;font-size:1rem">--%</span>
+
+        </div>
+
+        <button class="sync-btn" onclick="syncIVtoL1Sigma()">套用至 Leg 1 波動率 (σ)</button>
+
+        <div class="muted">註：以 Leg 1 參數進行反推</div>
+
+      </div>
+
+
+
+      <div class="section-title">2. Global Parameters</div>
+
+      <div class="control-group">
+
+        <label>標的現貨價 (S)</label>
+
+        <input type="number" id="S" value="100" oninput="scheduleUpdate()">
+
+      </div>
+
+
+
+      <div class="section-title">3. Leg 1 Parameters</div>
+
+      <div class="control-group">
+
+        <div class="row3">
+
+          <div><label>Type</label>
+
+            <select id="L1_type" onchange="calculateOnlyIV(); scheduleUpdate()">
+
+              <option value="call">Call</option>
+
+              <option value="put">Put</option>
+
+            </select>
+
+          </div>
+
+          <div><label>Side</label>
+
+            <select id="L1_side" onchange="scheduleUpdate()">
+
+              <option value="long">Long</option>
+
+              <option value="short">Short</option>
+
+            </select>
+
+          </div>
+
+          <div><label>Qty</label><input type="number" id="L1_qty" value="1" min="1" oninput="scheduleUpdate()"></div>
+
+        </div>
+
+        <div class="row2" style="margin-top:8px;">
+
+          <div><label>Strike (K)</label><input type="number" id="L1_K" value="100" oninput="calculateOnlyIV(); scheduleUpdate()"></div>
+
+          <div><label>Days (T)</label><input type="number" id="L1_T" value="30" oninput="calculateOnlyIV(); scheduleUpdate()"></div>
+
+        </div>
+
+        <div class="row2" style="margin-top:8px;">
+
+          <div><label>Vol (σ)</label><input type="number" id="L1_sigma" value="0.25" step="0.01" oninput="scheduleUpdate()"></div>
+
+          <div><label>Rate (r)</label><input type="number" id="L1_r" value="0.02" step="0.01" oninput="calculateOnlyIV(); scheduleUpdate()"></div>
+
+        </div>
+
+      </div>
+
+
+
+      <div id="leg2_container">
+
+        <div class="section-title">4. Leg 2 Parameters</div>
+
+        <div class="control-group">
+
+          <div class="row3">
+
+            <div><label>Type</label>
+
+              <select id="L2_type" onchange="scheduleUpdate()">
+
+                <option value="call">Call</option>
+
+                <option value="put">Put</option>
+
+              </select>
+
+            </div>
+
+            <div><label>Side</label>
+
+              <select id="L2_side" onchange="scheduleUpdate()">
+
+                <option value="long">Long</option>
+
+                <option value="short">Short</option>
+
+              </select>
+
+            </div>
+
+            <div><label>Qty</label><input type="number" id="L2_qty" value="1" min="1" oninput="scheduleUpdate()"></div>
+
+          </div>
+
+          <div class="row2" style="margin-top:8px;">
+
+            <div><label>Strike (K)</label><input type="number" id="L2_K" value="100" oninput="scheduleUpdate()"></div>
+
+            <div><label>Days (T)</label><input type="number" id="L2_T" value="30" oninput="scheduleUpdate()"></div>
+
+          </div>
+
+          <div class="row2" style="margin-top:8px;">
+
+            <div><label>Vol (σ)</label><input type="number" id="L2_sigma" value="0.25" step="0.01" oninput="scheduleUpdate()"></div>
+
+            <div><label>Rate (r)</label><input type="number" id="L2_r" value="0.02" step="0.01" oninput="scheduleUpdate()"></div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+
+      <div class="section-title">5. Analysis Target</div>
+
+      <div class="radio-grid">
+
+        <label><input type="radio" name="g" value="payoff" checked onchange="scheduleUpdate()"><span>損益圖 (P/L)</span></label>
+
+        <label><input type="radio" name="g" value="delta" onchange="scheduleUpdate()"><span>Delta</span></label>
+
+        <label><input type="radio" name="g" value="gamma" onchange="scheduleUpdate()"><span>Gamma</span></label>
+
+        <label><input type="radio" name="g" value="vega"  onchange="scheduleUpdate()"><span>Vega</span></label>
+
+        <label><input type="radio" name="g" value="theta" onchange="scheduleUpdate()"><span>Theta</span></label>
+
+        <label><input type="radio" name="g" value="rho"   onchange="scheduleUpdate()"><span>Rho</span></label>
+
+      </div>
+
+    </div>
+
+
+
+    <div class="panel chart">
+
+      <div id="chart-header"></div>
+
+      <div class="chart-wrapper"><canvas id="chart"></canvas></div>
+
+      <div id="strategy-console"></div>
+
+    </div>
+
+  </div>
+
+
+
+<script>
+
+/* =========================
+
+   Global
+
+========================= */
+
+let currentMode = 'single';
+
+let lastCalculatedIV = 0.2;
+
+let chartInstance = null;
+
+
+
+// debounce
+
+let rafPending = false;
+
+function scheduleUpdate(){
+
+  if (rafPending) return;
+
+  rafPending = true;
+
+  requestAnimationFrame(() => {
+
+    rafPending = false;
+
+    updateAll();
+
+  });
+
+}
+
+
+
+/* =========================
+
+   Normal PDF/CDF
+
+========================= */
+
+const MathTool = {
+
+  n(x){ return Math.exp(-0.5*x*x)/Math.sqrt(2*Math.PI); },
+
+  N(x){
+
+    let t=1/(1+0.2316419*Math.abs(x));
+
+    let d=0.3989423*Math.exp(-x*x/2);
+
+    let p=d*t*(0.3193815+t*(-0.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));
+
+    return x>0?1-p:p;
+
+  }
+
+};
+
+
+
+/* =========================
+
+   Black-Scholes
+
+========================= */
+
+function getBS(S, K, T, r, v){
+
+  T = Math.max(1e-8, T);
+
+  v = Math.max(1e-8, v);
+
+
+
+  const sqrtT = Math.sqrt(T);
+
+  const d1 = (Math.log(S/K) + (r + 0.5*v*v)*T) / (v*sqrtT);
+
+  const d2 = d1 - v*sqrtT;
+
+
+
+  const cp = S*MathTool.N(d1) - K*Math.exp(-r*T)*MathTool.N(d2);
+
+  const pp = cp - S + K*Math.exp(-r*T);
+
+
+
+  const nd1 = MathTool.n(d1);
+
+
+
+  return {
+
+    call: cp,
+
+    put: pp,
+
+    greeks: {
+
+      delta:{ call: MathTool.N(d1), put: MathTool.N(d1)-1 },
+
+      gamma:{ call: nd1/(S*v*sqrtT), put: nd1/(S*v*sqrtT) },
+
+      vega :{ call: (S*sqrtT*nd1)/100, put: (S*sqrtT*nd1)/100 },
+
+      theta:{
+
+        call:(-(S*nd1*v)/(2*sqrtT) - r*K*Math.exp(-r*T)*MathTool.N(d2))/365,
+
+        put :(-(S*nd1*v)/(2*sqrtT) + r*K*Math.exp(-r*T)*MathTool.N(-d2))/365
+
+      },
+
+      rho:{
+
+        call:(K*T*Math.exp(-r*T)*MathTool.N(d2))/100,
+
+        put :(-K*T*Math.exp(-r*T)*MathTool.N(-d2))/100
+
+      }
+
+    }
+
+  };
+
+}
+
+
+
+/* =========================
+
+   DOM helpers
+
+========================= */
+
+function readLeg(idx){
+
+  return {
+
+    idx,
+
+    type: document.getElementById(`L${idx}_type`).value,
+
+    side: document.getElementById(`L${idx}_side`).value,
+
+    qty: +document.getElementById(`L${idx}_qty`).value || 0,
+
+    K: +document.getElementById(`L${idx}_K`).value,
+
+    T: (+document.getElementById(`L${idx}_T`).value)/365,
+
+    sigma: +document.getElementById(`L${idx}_sigma`).value,
+
+    r: +document.getElementById(`L${idx}_r`).value
+
+  };
+
+}
+
+function sideSign(side){ return side === 'long' ? 1 : -1; }
+
+
+
+function setLegValues(idx, type, side, K, Tdays, v){
+
+  document.getElementById(`L${idx}_type`).value = type;
+
+  document.getElementById(`L${idx}_side`).value = side;
+
+  document.getElementById(`L${idx}_K`).value = K;
+
+  document.getElementById(`L${idx}_T`).value = Tdays;
+
+  document.getElementById(`L${idx}_sigma`).value = v;
+
+}
+
+
+
+/* =========================
+
+   Payoff & Greeks
+
+========================= */
+
+function legPayoffAtExpiry(S, leg, S0){
+
+  const bs0 = getBS(S0, leg.K, leg.T, leg.r, leg.sigma);
+
+  const premium0 = (leg.type === 'call') ? bs0.call : bs0.put;
+
+  const intrinsic = (leg.type === 'call') ? Math.max(0, S - leg.K) : Math.max(0, leg.K - S);
+
+  return leg.qty * (intrinsic - premium0) * sideSign(leg.side);
+
+}
+
+function legGreek(S, leg, greekName){
+
+  const bs = getBS(S, leg.K, leg.T, leg.r, leg.sigma);
+
+  return leg.qty * bs.greeks[greekName][leg.type] * sideSign(leg.side);
+
+}
+
+
+
+/* =========================
+
+   IV solver
+
+========================= */
+
+function calculateOnlyIV(){
+
+  const mktP = +document.getElementById('mkt_price').value;
+
+  const leg1 = readLeg(1);
+
+  const S = +document.getElementById('S').value;
+
+  if (leg1.T <= 0 || mktP <= 0 || S <= 0 || leg1.K <= 0) return;
+
+
+
+  let v = 0.3;
+
+  for(let i=0;i<25;i++){
+
+    const b = getBS(S, leg1.K, leg1.T, leg1.r, v);
+
+    const modelP = (leg1.type === 'call') ? b.call : b.put;
+
+    const vega_per1vol = b.greeks.vega[leg1.type] * 100;
+
+    const diff = modelP - mktP;
+
+
+
+    if (Math.abs(diff) < 1e-6 || Math.abs(vega_per1vol) < 1e-10) break;
+
+    v = v - diff/vega_per1vol;
+
+    v = Math.max(1e-4, Math.min(5, v));
+
+  }
+
+
+
+  lastCalculatedIV = v;
+
+  document.getElementById('iv_res').innerText = (v*100).toFixed(2) + "%";
+
+}
+
+function syncIVtoL1Sigma(){
+
+  document.getElementById('L1_sigma').value = lastCalculatedIV.toFixed(4);
+
+  scheduleUpdate();
+
+}
+
+
+
+/* =========================
+
+   Robust scale (Quantile)
+
+========================= */
+
+function quantile(arr, q){
+
+  if (!arr.length) return null;
+
+  const a = arr.slice().sort((x,y)=>x-y);
+
+  const pos = (a.length - 1) * q;
+
+  const base = Math.floor(pos);
+
+  const rest = pos - base;
+
+  if (a[base+1] === undefined) return a[base];
+
+  return a[base] + rest * (a[base+1] - a[base]);
+
+}
+
+
+
+/* =========================
+
+   Break-even detection
+
+========================= */
+
+function findBreakEvens(xs, ys){
+
+  const bes = [];
+
+  for (let i=1; i<ys.length; i++){
+
+    const y0 = ys[i-1], y1 = ys[i];
+
+    if (!Number.isFinite(y0) || !Number.isFinite(y1)) continue;
+
+    if (y1 === 0) { bes.push(xs[i]); continue; }
+
+    if ((y0 < 0 && y1 > 0) || (y0 > 0 && y1 < 0)){
+
+      const x0 = xs[i-1], x1 = xs[i];
+
+      const t = (0 - y0) / (y1 - y0);
+
+      const xBE = x0 + t * (x1 - x0);
+
+      bes.push(xBE);
+
+    }
+
+  }
+
+  bes.sort((a,b)=>a-b);
+
+  const out = [];
+
+  for (const x of bes){
+
+    if (out.length === 0 || Math.abs(x - out[out.length-1]) > 1e-3) out.push(x);
+
+  }
+
+  return out;
+
+}
+
+
+
+/* =========================
+
+   Presets / Mode
+
+========================= */
+
+function setMode(mode){
+
+  currentMode = mode;
+
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.id==='btn-'+mode));
+
+  const S = +document.getElementById('S').value;
+
+
+
+  document.getElementById('leg2_container').classList.toggle('hidden', mode==='single');
+
+
+
+  if(mode==='single'){
+
+    setLegValues(1, 'call', 'long', S, 30, 0.25);
+
+  } else if(mode==='straddle'){
+
+    setLegValues(1, 'call', 'long', S, 30, 0.25);
+
+    setLegValues(2, 'put',  'long', S, 30, 0.25);
+
+  } else if(mode==='strangle'){
+
+    setLegValues(1, 'call', 'long', S+5, 30, 0.25);
+
+    setLegValues(2, 'put',  'long', S-5, 30, 0.28);
+
+  } else if(mode==='calendar'){
+
+    setLegValues(1, 'call', 'short', S, 30, 0.25);
+
+    setLegValues(2, 'call', 'long',  S, 60, 0.25);
+
+  } else if(mode==='bull'){
+
+    setLegValues(1, 'call', 'long',  S-5, 30, 0.25);
+
+    setLegValues(2, 'call', 'short', S+5, 30, 0.25);
+
+  } else if(mode==='bear'){
+
+    setLegValues(1, 'call', 'short', S-5, 30, 0.25);
+
+    setLegValues(2, 'call', 'long',  S+5, 30, 0.25);
+
+  }
+
+
+
+  calculateOnlyIV();
+
+  scheduleUpdate();
+
+}
+
+
+
+/* =========================
+
+   Main calc
+
+========================= */
+
+function updateAll(){
+
+  const S0 = +document.getElementById('S').value;
+
+  const chartType = document.querySelector('input[name="g"]:checked').value;
+
+
+
+  const leg1 = readLeg(1);
+
+  const leg2 = readLeg(2);
+
+
+
+  const strikes = [leg1.K];
+
+  if(currentMode !== 'single') strikes.push(leg2.K);
+
+
+
+  let range = S0 * 0.4;
+
+  const avgK = strikes.reduce((a,b)=>a+b,0)/strikes.length;
+
+  range = Math.max(range, Math.abs(avgK - S0) * 2.5);
+
+
+
+  const steps = 200;
+
+  const xMin = Math.max(0.1, S0 - range);
+
+  const xMax = S0 + range;
+
+  const dx = (xMax - xMin) / steps;
+
+
+
+  const xs = [];
+
+  const labels = [];
+
+  const dataMain = [];
+
+  const dataL1 = [];
+
+  const dataL2 = [];
+
+
+
+  for(let i=0; i<=steps; i++){
+
+    const s = xMin + i*dx;
+
+    xs.push(s);
+
+    labels.push(s.toFixed(2));
+
+
+
+    let v1=0, v2=0;
+
+
+
+    if (chartType === 'payoff') {
+
+      if (currentMode === 'calendar') {
+
+        const Tn = leg1.T, Tf = leg2.T;
+
+        if (Tf <= Tn + 1e-10) {
+
+          v1 = 0; v2 = 0;
+
+        } else {
+
+          const prem10 = (leg1.type==='call') ? getBS(S0, leg1.K, leg1.T, leg1.r, leg1.sigma).call
+                                              : getBS(S0, leg1.K, leg1.T, leg1.r, leg1.sigma).put;
+
+          const prem20 = (leg2.type==='call') ? getBS(S0, leg2.K, leg2.T, leg2.r, leg2.sigma).call
+                                              : getBS(S0, leg2.K, leg2.T, leg2.r, leg2.sigma).put;
+
+
+
+          const costFV1 = prem10 * Math.exp(leg1.r * Tn);
+
+          const costFV2 = prem20 * Math.exp(leg2.r * Tn);
+
+
+
+          const val1 = (leg1.type === 'call') ? Math.max(0, s - leg1.K) : Math.max(0, leg1.K - s);
+
+          v1 = leg1.qty * (val1 - costFV1) * sideSign(leg1.side);
+
+
+
+          const bsFar = getBS(s, leg2.K, (Tf - Tn), leg2.r, leg2.sigma);
+
+          const val2 = (leg2.type==='call') ? bsFar.call : bsFar.put;
+
+          v2 = leg2.qty * (val2 - costFV2) * sideSign(leg2.side);
+
+        }
+
+      } else {
+
+        v1 = legPayoffAtExpiry(s, leg1, S0);
+
+        v2 = (currentMode !== 'single') ? legPayoffAtExpiry(s, leg2, S0) : 0;
+
+      }
+
+    } else {
+
+      v1 = legGreek(s, leg1, chartType);
+
+      v2 = (currentMode !== 'single') ? legGreek(s, leg2, chartType) : 0;
+
+    }
+
+
+
+    dataL1.push(v1);
+
+    dataL2.push(v2);
+
+    dataMain.push(v1 + v2);
+
+  }
+
+
+
+  drawChart(xs, labels, dataMain, dataL1, dataL2, chartType, S0, leg1, leg2);
+
+  updateConsole(leg1, leg2, S0);
+
+}
+
+
+
+/* =========================
+
+   Draw
+
+========================= */
+
+function drawChart(xs, labels, main, l1, l2, type, S0, leg1Obj, leg2Obj){
+
+  const canvas = document.getElementById('chart');
+
+  const ctx = canvas.getContext('2d');
+
+
+
+  if (chartInstance) chartInstance.destroy();
+
+
+
+  // scale pool
+
+  let pool = [];
+
+  if (currentMode === 'single') pool = l1.slice();
+
+  else pool = main.slice();
+
+
+
+  // ✅ 修改點：不論 Payoff 還是 Greeks，只要是多腿策略，就把 legs 納入縮放
+
+  if (currentMode !== 'single') pool = pool.concat(l1, l2);
+
+  
+
+  pool = pool.filter(v => Number.isFinite(v));
+
+
+
+  let yMin=null, yMax=null;
+  if (pool.length > 5) {
+
+    // ====== ✅ 修正：Greeks 在 T 很小時尖峰巨大，quantile 可能裁掉尖峰造成「圖被切掉」
+    // 1) 先用 quantile 做穩健縮放（payoff 用 2%~98%，greeks 用更穩健一點）
+    const loQ = (type === 'payoff') ? 0.02 : 0.005;
+    const hiQ = (type === 'payoff') ? 0.98 : 0.995;
+
+    const qLo = quantile(pool, loQ);
+    const qHi = quantile(pool, hiQ);
+
+    let span = (qHi - qLo);
+    if (!Number.isFinite(span) || span === 0) span = 1;
+
+    yMin = qLo - span * 0.15;
+    yMax = qHi + span * 0.15;
+
+    // 2) ✅ 最重要：保證不裁掉真正極值（Gamma/Theta 等尖峰）
+    let pMin = Infinity, pMax = -Infinity;
+    for (const v of pool) {
+      if (v < pMin) pMin = v;
+      if (v > pMax) pMax = v;
+    }
+
+    if (Number.isFinite(pMin) && pMin < yMin) {
+      const pad = (Math.abs(pMin) || 1) * 0.05;
+      yMin = pMin - pad;
+    }
+    if (Number.isFinite(pMax) && pMax > yMax) {
+      const pad = (Math.abs(pMax) || 1) * 0.05;
+      yMax = pMax + pad;
+    }
+
+    if (!Number.isFinite(yMin) || !Number.isFinite(yMax) || yMin === yMax) {
+      yMin = (Number.isFinite(pMin) ? pMin : -1) - 1;
+      yMax = (Number.isFinite(pMax) ? pMax :  1) + 1;
+    }
+    // ====== ✅ 修正結束
+  }
+
+
+
+  const l1Label = `Leg 1 (${leg1Obj.side} ${leg1Obj.type})`;
+
+  const l2Label = `Leg 2 (${leg2Obj.side} ${leg2Obj.type})`;
+
+
+
+  const datasets = [];
+
+
+
+  if (currentMode === 'single') {
+
+    const color = (leg1Obj.type === 'call') ? '#4338ca' : '#ef4444';
+
+    datasets.push({
+
+      label: (type === 'payoff') ? 'P/L' : type.toUpperCase(),
+
+      data: l1,
+
+      borderColor: color,
+
+      borderWidth: 3,
+
+      pointRadius: 0,
+
+      fill: (type === 'payoff') ? {target:'origin', above: color+'1A', below: color+'1A'} : false
+
+    });
+
+  } else {
+
+    // total always
+
+    datasets.push({
+
+      label: 'Strategy Total',
+
+      data: main,
+
+      borderColor: '#10b981',
+
+      borderWidth: 3,
+
+      pointRadius: 0,
+
+      fill: (type === 'payoff') ? {target:'origin', above:'rgba(16,185,129,0.12)', below:'rgba(239,68,68,0.12)'} : false,
+
+      order: 1
+
+    });
+
+
+
+    // ✅ 修改點：移除 if (type === 'payoff')，Greeks 也能畫出分腿
+
+    datasets.push({
+
+      label: l1Label, data: l1,
+
+      borderColor: '#4338ca', borderWidth: 2, borderDash: [5,5],
+
+      pointRadius: 0, order: 2
+
+    });
+
+    datasets.push({
+
+      label: l2Label, data: l2,
+
+      borderColor: '#ef4444', borderWidth: 2, borderDash: [5,5],
+
+      pointRadius: 0, order: 3
+
+    });
+
+  }
+
+
+
+  // annotations
+
+  const annotations = {
+
+    spotLine: { type:'line', xMin:S0, xMax:S0, borderColor:'#fbbf24', borderWidth:2, borderDash:[3,3] }
+
+  };
+
+
+
+  if (type === 'payoff') {
+
+    annotations.zeroPL = {
+
+      type:'line',
+
+      yMin:0, yMax:0,
+
+      borderColor:'#94a3b8',
+
+      borderWidth:1.5,
+
+      borderDash:[4,4],
+
+      label:{ content:'P/L = 0', display:true, position:'start', color:'#64748b', backgroundColor:'rgba(255,255,255,0.7)' }
+
+    };
+
+
+
+    const baseSeries = (currentMode === 'single') ? l1 : main;
+
+    const bes = findBreakEvens(xs, baseSeries);
+
+
+
+    bes.slice(0, 6).forEach((xBE, idx) => {
+
+      const key = `beLine${idx}`;
+
+      annotations[key] = {
+
+        type:'line',
+
+        xMin:xBE, xMax:xBE,
+
+        borderColor:'#d946ef',
+
+        borderWidth:2,
+
+        borderDash:[2,3],
+
+        label:{
+
+          content:`BE ${xBE.toFixed(2)}`,
+
+          display:true,
+
+          position:'end',
+
+          yAdjust:-8,
+
+          color:'#d946ef',
+
+          backgroundColor:'rgba(255,255,255,0.8)'
+
+        }
+
+      };
+
+    });
+
+  }
+
+
+
+  chartInstance = new Chart(ctx, {
+
+    type: 'line',
+
+    data: { labels, datasets },
+
+    options: {
+
+      responsive:true,
+
+      maintainAspectRatio:false,
+
+      animation:false,
+
+      scales:{ x:{ ticks:{ maxTicksLimit:10 } }, y:{ min:yMin, max:yMax } },
+
+      plugins:{ legend:{ display:false }, annotation:{ annotations } }
+
+    }
+
+  });
+
+
+
+  // header legend
+
+  let html = `<div class="legend-indicator"><div class="line-dashed" style="border-color:#fbbf24"></div> Spot Price</div>`;
+
+  if (type === 'payoff') {
+
+    html += `<div class="legend-indicator"><div class="line-dashed" style="border-color:#94a3b8"></div> P/L = 0</div>`;
+
+    html += `<div class="legend-indicator"><div class="line-dashed" style="border-color:#d946ef"></div> Break-even</div>`;
+
+  }
+
+
+
+  if (currentMode === 'single') {
+
+    const color = (leg1Obj.type === 'call') ? '#4338ca' : '#ef4444';
+
+    html += `<div class="legend-indicator"><div class="line-solid" style="background:${color}"></div> ${(type==='payoff')?'P/L':type.toUpperCase()}</div>`;
+
+  } else {
+
+    html += `<div class="legend-indicator"><div class="line-solid" style="background:#10b981"></div> Total</div>`;
+
+    // ✅ Greeks 也要顯示 L1/L2 的圖例
+
+    html += `<div class="legend-indicator"><div class="line-dashed" style="border-color:#4338ca"></div> L1</div>`;
+
+    html += `<div class="legend-indicator"><div class="line-dashed" style="border-color:#ef4444"></div> L2</div>`;
+
+  }
+
+  document.getElementById('chart-header').innerHTML = html;
+
+}
+
+
+
+/* =========================
+
+   Console
+
+========================= */
+
+function updateConsole(l1, l2, S0){
+
+  const definitions = {
+
+    'single': '',
+
+    'straddle': '策略定義：同時買進【Call】與【Put】(相同執行價)。預期價格大幅波動。',
+
+    'strangle': '策略定義：買進【Call】(高K) 與【Put】(低K)。成本較跨式低，需更大波動。',
+
+    'calendar': '策略定義：賣出【近月】(L1) 並買進【遠月】(L2)。此圖在「近月到期日 Tn」評價：L1 用到期 intrinsic；L2 用剩餘期限 (Tf−Tn) 的理論價值。',
+
+    'bull': '策略定義：買進低履約價 Call，賣出高履約價 Call。溫和看漲，損益有限。',
+
+    'bear': '策略定義：賣出低履約價 Call，買進高履約價 Call。溫和看跌，損益有限。'
+
+  };
+
+
+
+  const defHTML = (currentMode !== 'single') ? `<div class="strat-def-box">${definitions[currentMode] || ''}</div>` : '';
+
+
+
+  const bs1 = getBS(S0, l1.K, l1.T, l1.r, l1.sigma);
+
+  const p1 = (l1.type==='call' ? bs1.call : bs1.put);
+
+  const cash1 = p1 * l1.qty * (l1.side==='long' ? -1 : 1);
+
+
+
+  let p2 = 0, cash2 = 0;
+
+  if (currentMode !== 'single') {
+
+    const bs2 = getBS(S0, l2.K, l2.T, l2.r, l2.sigma);
+
+    p2 = (l2.type==='call' ? bs2.call : bs2.put);
+
+    cash2 = p2 * l2.qty * (l2.side==='long' ? -1 : 1);
+
+  }
+
+
+
+  const net0 = cash1 + cash2;
+
+  const isCredit0 = net0 >= 0;
+
+
+
+  function fmtLeg(leg){ return `${leg.side.toUpperCase()} ${leg.type.toUpperCase()} K=${leg.K}, T=${Math.round(leg.T*365)}d`; }
+
+
+
+  let extraCalendar = '';
+
+  if (currentMode === 'calendar') {
+
+    const Tn = l1.T;
+
+    const fv1 = (p1 * Math.exp(l1.r * Tn)) * l1.qty * (l1.side==='long' ? -1 : 1);
+
+    const fv2 = (p2 * Math.exp(l2.r * Tn)) * l2.qty * (l2.side==='long' ? -1 : 1);
+
+    const netFV = fv1 + fv2;
+
+    const isCreditFV = netFV >= 0;
+
+
+
+    extraCalendar = `
+
+      <div class="data-card" style="border-color:${isCreditFV?'#10b981':'#ef4444'}">
+
+        <div class="dc-label">Net @Tn FV (到近月的成本口徑)</div>
+
+        <div class="dc-val" style="color:${isCreditFV?'#10b981':'#ef4444'}">${Math.abs(netFV).toFixed(2)}</div>
+
+      </div>
+
+    `;
+
+  }
+
+
+
+  const cards = `
+
+    <div class="data-card">
+
+      <div class="dc-label">Leg 1 Premium (權利金)</div>
+
+      <div class="dc-val">${p1.toFixed(2)}</div>
+
+      <div class="muted">${fmtLeg(l1)}</div>
+
+    </div>
+
+
+
+    ${currentMode!=='single' ? `
+
+    <div class="data-card">
+
+      <div class="dc-label">Leg 2 Premium (權利金)</div>
+
+      <div class="dc-val">${p2.toFixed(2)}</div>
+
+      <div class="muted">${fmtLeg(l2)}</div>
+
+    </div>` : ''}
+
+
+
+    <div class="data-card" style="border-color:${isCredit0?'#10b981':'#ef4444'}">
+
+      <div class="dc-label">${isCredit0?'Net Credit (淨收入 t0)':'Net Debit (淨支出 t0)'}</div>
+
+      <div class="dc-val" style="color:${isCredit0?'#10b981':'#ef4444'}">${Math.abs(net0).toFixed(2)}</div>
+
+    </div>
+
+
+
+    ${extraCalendar}
+
+  `;
+
+
+
+  document.getElementById('strategy-console').innerHTML =
+
+    `<div class="console-title">模式：${currentMode.toUpperCase()}</div>${defHTML}<div class="data-cards">${cards}</div>`;
+
+}
+
+
+
+/* =========================
+
+   Boot
+
+========================= */
+
+window.onload = function(){
+
+  try {
+
+    const ann = window.ChartAnnotation || window['chartjs-plugin-annotation'];
+
+    if (ann && window.Chart && Chart.register) Chart.register(ann);
+
+  } catch(e){}
+
+
+
+  setTimeout(() => {
+
+    calculateOnlyIV();
+
+    setMode('single');
+
+  }, 0);
+
+};
+
+window.addEventListener('resize', () => { if (chartInstance) chartInstance.resize(); });
+
+</script>
+
+</body>
+
+</html>

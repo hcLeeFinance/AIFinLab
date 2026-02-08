@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinLab - 財金資訊工程實驗室</title>
+    <style>
+        /* 全局設定 */
+        body {
+            font-family: "Segoe UI", "Microsoft JhengHei", sans-serif;
+            background-color: #f6f8fa;
+            color: #24292f;
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+        }
+
+        /* Header */
+        header {
+            background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+            color: white;
+            padding: 3rem 1rem;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        header h1 { margin: 0; font-size: 2.8rem; letter-spacing: 1px; }
+        header .subtitle { color: #8b949e; font-size: 1.2rem; margin-top: 10px; font-weight: 300; }
+
+        /* Container */
+        .container {
+            max-width: 1100px;
+            margin: -30px auto 40px;
+            padding: 0 20px;
+            position: relative;
+            z-index: 10;
+        }
+
+        /* --- Grid Layout --- */
+        .grid{
+            display: grid;
+            gap: 30px;
+
+            /* ✅ 桌機 3 欄（6 張卡比較舒服） */
+            grid-template-columns: repeat(3, 1fr);
+        }
+
+        /* Cards */
+        .card{
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border-top: 6px solid #ccc;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            height: 100%;
+        }
+        .card:hover { transform: translateY(-8px); box-shadow: 0 20px 40px rgba(0,0,0,0.1); }
+        .card h3 { margin-top: 0; font-size: 1.5rem; color: #1f2328; display: flex; align-items: center; gap: 10px; }
+        .card p { color: #57606a; margin-bottom: 25px; font-size: 0.95rem; flex-grow: 1; }
+
+        /* Buttons */
+        .btn{
+            display: inline-block;
+            text-align: center;
+            padding: 12px 0;
+            width: 100%;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: background-color 0.2s;
+            cursor: pointer;
+        }
+
+        /* --- App 1: FV (藍色系) --- */
+        .card.fv { border-top-color: #0969da; }
+        .card.fv h3::before { content: "🚀"; font-size: 1.2em; }
+        .card.fv .btn { background-color: #0969da; color: white; }
+        .card.fv .btn:hover { background-color: #0356b6; }
+
+        /* --- App 2: Mortgage (綠色系) --- */
+        .card.mortgage { border-top-color: #2ea44f; }
+        .card.mortgage h3::before { content: "🏠"; font-size: 1.2em; }
+        .card.mortgage .btn { background-color: #2ea44f; color: white; }
+        .card.mortgage .btn:hover { background-color: #2c974b; }
+
+        /* --- App 3: DCA (橘色系) --- */
+        .card.dca { border-top-color: #ed8936; }
+        .card.dca h3::before { content: "⚖️"; font-size: 1.2em; }
+        .card.dca .btn { background-color: #ed8936; color: white; }
+        .card.dca .btn:hover { background-color: #dd6b20; }
+
+        /* ✅ App 4: Options (靛青 / 藍紫) --- */
+        .card.options { border-top-color: #4f46e5; }
+        .card.options h3::before { content: "🧩"; font-size: 1.2em; }
+        .card.options .btn { background-color: #4f46e5; color: white; }
+        .card.options .btn:hover { background-color: #4338ca; }
+
+        /* --- App 5: Beta (紅色系) --- */
+        .card.beta { border-top-color: #cf222e; }
+        .card.beta h3::before { content: "📊"; font-size: 1.2em; }
+        .card.beta .btn { background-color: #cf222e; color: white; }
+        .card.beta .btn:hover { background-color: #a40e26; }
+
+        /* --- App 6: OptEF (紫色系) --- */
+        .card.opt { border-top-color: #8250df; }
+        .card.opt h3::before { content: "🎯"; font-size: 1.2em; }
+        .card.opt .btn { background-color: #8250df; color: white; }
+        .card.opt .btn:hover { background-color: #6e40c9; }
+
+        footer{
+            text-align: center;
+            padding: 40px;
+            color: #6e7781;
+            font-size: 0.9rem;
+            border-top: 1px solid #eaecef;
+            margin-top: 40px;
+        }
+
+        /* --- 平板：兩欄 --- */
+        @media (max-width: 1024px) {
+            .grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        /* --- 手機：一欄 --- */
+        @media (max-width: 768px) {
+            .grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <h1>FinLab</h1>
+    <p class="subtitle">財務工程與資訊科學的實驗平台</p>
+</header>
+
+<div class="container">
+    <div class="grid">
+
+        <!-- 1 -->
+        <div class="card fv">
+            <div>
+                <h3>投資未來值試算 (FV)</h3>
+                <p>運用複利效應預測資產增長。輸入初始本金、定期定額與報酬率，系統將繪製「成本 vs 資產」曲線。</p>
+            </div>
+            <a href="fv/index.html" class="btn">開始計算資產增長 &rarr;</a>
+        </div>
+
+        <!-- 2 -->
+        <div class="card mortgage">
+            <div>
+                <h3>房貸大師 (Mortgage)</h3>
+                <p>包含本息攤還、變動利率模擬，以及多重提前還款計算。提供詳細的年度還款明細表。</p>
+            </div>
+            <a href="mortgage/index.html" class="btn">開始分析房貸 &rarr;</a>
+        </div>
+
+        <!-- 3 -->
+        <div class="card dca">
+            <div>
+                <h3>Lump-sum vs 單筆投入 (DCA)</h3>
+                <p>比較定期定額與單筆投入的績效差異。包含視覺化歷史回測、勝率分析與 Sharpe/Sortino 指標。</p>
+            </div>
+            <a href="dca/index.html" class="btn">進入策略比較 &rarr;</a>
+        </div>
+
+        <!-- ✅ 4：Options 放這裡 -->
+        <div class="card options">
+            <div>
+                <h3>選擇權策略分析 (Options)</h3>
+                <p>支援單一期權與常見雙腳策略（跨式、勒式、日曆價差、牛熊價差），並提供 P/L 與 Greeks 圖、反推 IV 與策略成本摘要。</p>
+            </div>
+            <a href="options/index.html" class="btn">進入選擇權分析 &rarr;</a>
+        </div>
+
+        <!-- 5 -->
+        <div class="card beta">
+            <div>
+                <h3>Beta 風險係數 (CAPM)</h3>
+                <p>即時連線 Yahoo Finance，計算個股與大盤的連動性 (Beta) 與 Alpha 值。支援動態日期區間與圖表分析。</p>
+            </div>
+            <a href="beta/index.html" class="btn">進入風險分析 &rarr;</a>
+        </div>
+
+        <!-- 6 -->
+        <div class="card opt">
+            <div>
+                <h3>投資組合最佳化 (OptEF)</h3>
+                <p>整合效率前緣 (Efficient Frontier) 理論。協助您計算在不同風險水平下的最佳資產配置權重。</p>
+            </div>
+            <a href="https://xtg4qp.csb.app/" target="_blank" class="btn">啟動最佳化引擎 &rarr;</a>
+        </div>
+
+    </div>
+</div>
+
+<footer>© 2026 FinLab Project. Powered by GitHub Pages & R-Shiny.</footer>
+
+</body>
+</html>

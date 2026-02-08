@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinLab 房貸大師 (動態利率版)</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: "Microsoft JhengHei", "Segoe UI", sans-serif; background-color: #f0f2f5; padding: 20px; color: #333; }
+        .container { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+        .back-link { display: inline-block; margin-bottom: 20px; color: #0969da; text-decoration: none; font-weight: bold; }
+        h1 { text-align: center; color: #1f2328; margin-top: 0; }
+        
+        .section-box { border: 1px solid #e1e4e8; border-radius: 8px; padding: 20px; margin-bottom: 20px; background-color: #fff; }
+        .section-title { margin-top: 0; font-size: 1.1em; color: #0969da; border-bottom: 2px solid #f0f2f5; padding-bottom: 10px; margin-bottom: 15px; font-weight: bold; }
+
+        .input-row { display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap; }
+        .input-group { flex: 1; min-width: 200px; }
+        .input-group label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.9em; color: #555; }
+        .input-group input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
+
+        .dynamic-list { list-style: none; padding: 0; margin: 0; }
+        .dynamic-list li { background: #f8f9fa; border-bottom: 1px solid #eee; padding: 10px; display: flex; justify-content: space-between; align-items: center; font-size: 0.95em; }
+        .dynamic-list li:first-child { border-top: 1px solid #eee; }
+        
+        .btn-add { background-color: #0969da; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; white-space: nowrap; }
+        .btn-add:hover { background-color: #0356b6; }
+        .btn-delete { background-color: #cf222e; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; margin-left: 10px; }
+        .btn-calc { width: 100%; padding: 16px; background-color: #2ea44f; color: white; border: none; border-radius: 8px; font-size: 1.2em; cursor: pointer; font-weight: bold; margin-top: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .btn-calc:hover { background-color: #2c974b; transform: translateY(-2px); }
+
+        .summary-box { background: #fff8c5; border: 1px solid #d4a72c; padding: 20px; border-radius: 8px; margin-top: 30px; }
+        .summary-row { display: flex; justify-content: space-between; border-bottom: 1px dashed #d4a72c; padding: 8px 0; }
+        .summary-row:last-child { border-bottom: none; }
+        .big-number { font-size: 1.5em; font-weight: bold; color: #d93025; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 0.9em; }
+        th, td { padding: 10px; text-align: center; border-bottom: 1px solid #ddd; }
+        th { background-color: #f6f8fa; font-weight: bold; color: #333; }
+        tr:hover { background-color: #f1f1f1; }
+        .highlight-change { color: #d93025; font-weight: bold; background-color: #fff0f0; padding: 2px 5px; border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <a href="../index.html" class="back-link">← 回首頁</a>
+    <h1>🏠 房貸大師 (動態利率版)</h1>
+
+    <div class="section-box">
+        <div class="section-title">1. 初始貸款條件</div>
+        <div class="input-row">
+            <div class="input-group"><label>貸款總額 (萬)</label><input type="number" id="loanAmount" value="1000"></div>
+            <div class="input-group"><label>初始年利率 (%)</label><input type="number" id="initialRate" value="2.1" step="0.01"></div>
+            <div class="input-group"><label>期限 (年)</label><input type="number" id="loanYears" value="30"></div>
+            <div class="input-group"><label>寬限期 (年)</label><input type="number" id="gracePeriod" value="0"></div>
+        </div>
+    </div>
+
+    <div class="section-box">
+        <div class="section-title">2. 利率變動設定 (模擬升降息)</div>
+        <div class="input-row" style="align-items: flex-end;">
+            <div class="input-group"><label>第幾年開始變動</label><input type="number" id="newRateYear" placeholder="例: 2"></div>
+            <div class="input-group"><label>新利率 (%)</label><input type="number" id="newRateVal" placeholder="例: 2.5"></div>
+            <button class="btn-add" onclick="addRateEvent()">＋ 加入變動</button>
+        </div>
+        <ul id="rateList" class="dynamic-list"></ul>
+    </div>
+
+    <div class="section-box">
+        <div class="section-title">3. 提前還款計畫 (模擬獎金/大額還款)</div>
+        <div class="input-row" style="align-items: flex-end;">
+            <div class="input-group"><label>第幾年提前還</label><input type="number" id="prepayYear" placeholder="例: 5"></div>
+            <div class="input-group"><label>還款金額 (萬)</label><input type="number" id="prepayAmount" placeholder="例: 100"></div>
+            <button class="btn-add" onclick="addPrepayEvent()">＋ 加入還款</button>
+        </div>
+        <ul id="prepayList" class="dynamic-list"></ul>
+    </div>
+
+    <button class="btn-calc" onclick="calculate()">開始詳細運算</button>
+
+    <div id="resultArea" style="display:none;">
+        <div class="summary-box" id="summaryHtml"></div>
+        <canvas id="mortgageChart" style="margin-top:20px; max-height: 400px;"></canvas>
+        
+        <h3 style="margin-top:40px; border-left:5px solid #0969da; padding-left:10px;">📅 年度還款明細表</h3>
+        <div style="overflow-x:auto;">
+            <table id="detailTable">
+                <thead>
+                    <tr>
+                        <th>年度</th>
+                        <th>當年利率</th>
+                        <th>每月應繳 (本+利)</th>
+                        <th>年度額外還款</th>
+                        <th>年底剩餘本金</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    let rateEvents = [];
+    let prepayEvents = [];
+    let myChart = null;
+
+    function addRateEvent() {
+        let y = parseFloat(document.getElementById('newRateYear').value);
+        let r = parseFloat(document.getElementById('newRateVal').value);
+        if(!y || !r) return alert("請輸入完整年份與利率");
+        rateEvents.push({ year: y, rate: r });
+        rateEvents.sort((a,b) => a.year - b.year);
+        document.getElementById('newRateYear').value = '';
+        document.getElementById('newRateVal').value = '';
+        renderLists();
+    }
+
+    function addPrepayEvent() {
+        let y = parseFloat(document.getElementById('prepayYear').value);
+        let amt = parseFloat(document.getElementById('prepayAmount').value);
+        if(!y || !amt) return alert("請輸入完整年份與金額");
+        prepayEvents.push({ year: y, amount: amt });
+        prepayEvents.sort((a,b) => a.year - b.year);
+        document.getElementById('prepayYear').value = '';
+        document.getElementById('prepayAmount').value = '';
+        renderLists();
+    }
+
+    function removeRate(idx) { rateEvents.splice(idx, 1); renderLists(); }
+    function removePrepay(idx) { prepayEvents.splice(idx, 1); renderLists(); }
+
+    function renderLists() {
+        let rList = document.getElementById('rateList');
+        rList.innerHTML = rateEvents.map((item, i) => `
+            <li><span>第 <b>${item.year}</b> 年起，利率變為 <b style="color:#d93025">${item.rate}%</b></span>
+            <button class="btn-delete" onclick="removeRate(${i})">刪除</button></li>
+        `).join('');
+
+        let pList = document.getElementById('prepayList');
+        pList.innerHTML = prepayEvents.map((item, i) => `
+            <li><span>第 <b>${item.year}</b> 年，額外還款 <b style="color:#0969da">${item.amount} 萬</b></span>
+            <button class="btn-delete" onclick="removePrepay(${i})">刪除</button></li>
+        `).join('');
+    }
+
+    function calculate() {
+        let loanTotal = parseFloat(document.getElementById('loanAmount').value) * 10000;
+        let initRate = parseFloat(document.getElementById('initialRate').value);
+        let years = parseInt(document.getElementById('loanYears').value);
+        let graceYears = parseInt(document.getElementById('gracePeriod').value);
+        
+        let totalMonths = years * 12;
+        let balance = loanTotal;
+        let currentRatePct = initRate;
+        
+        let chartLabels = [];
+        let chartData = [];
+        let tableRows = [];
+        let totalInterestPaid = 0;
+        let totalPaidReal = 0;
+        
+        // 關鍵修正：增加一個變數來累計當年度的額外還款
+        let annualPrepayTrack = 0;
+
+        document.getElementById('resultArea').style.display = 'block';
+
+        for (let m = 1; m <= totalMonths; m++) {
+            let currentYear = Math.ceil(m / 12);
+            let isGracePeriod = (m <= graceYears * 12);
+
+            // A. 利率變動
+            let rateChange = rateEvents.find(e => (e.year - 1) * 12 + 1 === m);
+            if (rateChange) currentRatePct = rateChange.rate;
+            let monthlyRate = (currentRatePct / 100) / 12;
+
+            // B. 提前還款
+            let prepayAmt = 0;
+            // 邏輯：檢查本月是否有提前還款
+            let prepayEvent = prepayEvents.find(e => (e.year - 1) * 12 + 1 === m);
+            if (prepayEvent) {
+                prepayAmt = prepayEvent.amount * 10000;
+                if(balance >= prepayAmt) balance -= prepayAmt;
+                else { prepayAmt = balance; balance = 0; }
+                
+                totalPaidReal += prepayAmt;
+                // 累計到當年度變數中
+                annualPrepayTrack += prepayEvent.amount; 
+            }
+
+            // C. 計算 PMT
+            let pmt = 0;
+            let interest = balance * monthlyRate;
+            let principal = 0;
+
+            if (balance > 0) {
+                if (isGracePeriod) {
+                    pmt = interest;
+                    principal = 0;
+                } else {
+                    let remainingMonths = totalMonths - m + 1;
+                    pmt = (balance * monthlyRate * Math.pow(1 + monthlyRate, remainingMonths)) / (Math.pow(1 + monthlyRate, remainingMonths) - 1);
+                    principal = pmt - interest;
+                }
+            }
+
+            balance -= principal;
+            if (balance < 0) balance = 0;
+
+            totalInterestPaid += interest;
+            totalPaidReal += pmt;
+
+            // D. 紀錄數據 (每年紀錄或還清時)
+            // 條件：年底(12月) OR 最後一個月 OR 剛好還清的那一刻
+            let isYearEnd = (m % 12 === 0);
+            let isLastMonth = (m === totalMonths);
+            let isJustPaidOff = (balance === 0 && principal > 0); 
+            // 注意：如果 balance 已經是 0 很久了，就不重複紀錄
+
+            if (isYearEnd || isLastMonth || isJustPaidOff) {
+                // 避免還清後重複紀錄很多0
+                if (balance === 0 && !isJustPaidOff && !isYearEnd && !isLastMonth) continue; 
+                // 如果已經還清多年，只在年底稍微紀錄一下(選用)，這裡簡單處理：
+                if (balance === 0 && chartData[chartData.length-1] === 0 && !annualPrepayTrack) {
+                    // 如果上一筆已經是0，且今年沒還款，就不用一直記了，但為了表格好看，我們可以保留
+                }
+
+                chartLabels.push(`第${currentYear}年`);
+                chartData.push(Math.round(balance / 10000));
+
+                tableRows.push({
+                    year: currentYear,
+                    rate: currentRatePct,
+                    monthlyPay: Math.round(pmt),
+                    prepay: annualPrepayTrack, // 使用累計值
+                    balance: Math.round(balance / 10000)
+                });
+
+                // 紀錄完後，將年度累計歸零，準備迎接下一年
+                annualPrepayTrack = 0; 
+            }
+            
+            if (balance <= 0 && prepayAmt === 0 && !isYearEnd && !isLastMonth) {
+               // 如果年中還清，讓迴圈跑完這一年再顯示結果會比較整齊，或者直接跳出
+            }
+        }
+
+        // 渲染摘要
+        document.getElementById('summaryHtml').innerHTML = `
+            <div class="summary-row"><span>原始貸款：</span><span>${(loanTotal/10000).toFixed(0)} 萬</span></div>
+            <div class="summary-row"><span>總支付利息：</span><span>${(totalInterestPaid/10000).toFixed(2)} 萬</span></div>
+            <div class="summary-row">
+                <span>💰 總共還款金額 (本+利)：</span>
+                <span class="big-number">${(totalPaidReal/10000).toFixed(2)} 萬</span>
+            </div>
+        `;
+
+        drawChart(chartLabels, chartData);
+
+        // 渲染表格
+        // 過濾掉本金已經是0且沒有還款動作的後續年份(視需求，這邊保留完整列表或直到還清)
+        // 這裡做一個簡單的過濾：如果連續兩年本金都是0且沒還款，就不顯示後面的
+        let finalRows = [];
+        for(let i=0; i<tableRows.length; i++) {
+            finalRows.push(tableRows[i]);
+            if(tableRows[i].balance === 0 && tableRows[i].prepay === 0) {
+                // 檢查下一行是否也是0，如果是就停止顯示
+                if(i+1 < tableRows.length && tableRows[i+1].balance === 0) break;
+            }
+        }
+
+        let tableHtml = finalRows.map(row => {
+            let prepayText = row.prepay > 0 ? `<span class="highlight-change">+${row.prepay}萬</span>` : "-";
+            return `
+                <tr>
+                    <td>第 ${row.year} 年</td>
+                    <td>${row.rate}%</td>
+                    <td><b>${row.monthlyPay.toLocaleString()}</b> 元</td>
+                    <td>${prepayText}</td>
+                    <td>${row.balance} 萬</td>
+                </tr>
+            `;
+        }).join('');
+        document.querySelector("#detailTable tbody").innerHTML = tableHtml;
+    }
+
+    function drawChart(labels, data) {
+        const ctx = document.getElementById('mortgageChart').getContext('2d');
+        if (myChart) myChart.destroy();
+        myChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: '年底剩餘本金 (萬元)',
+                    data: data,
+                    borderColor: '#0969da',
+                    backgroundColor: 'rgba(9, 105, 218, 0.1)',
+                    fill: true,
+                    tension: 0.2
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    }
+</script>
+
+</body>
+</html>

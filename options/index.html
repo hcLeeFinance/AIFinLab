@@ -464,6 +464,25 @@
 
     .hidden{ display:none !important; }
 
+    
+    /* =========================
+       ✅ only-added: DynGamma view container
+    ========================= */
+    #dyngamma_view{
+      flex:1;
+      min-height:0;
+      overflow:hidden;
+      padding:16px;
+    }
+    #dyngamma_iframe{
+      width:100%;
+      height:100%;
+      border:0;
+      border-radius:12px;
+      overflow:hidden;
+      background:#fff;
+    }
+
   </style>
 
 </head>
@@ -490,10 +509,14 @@
 
     <button class="tab-btn"        id="btn-bear"     onclick="setMode('bear')">空頭價差 (Bear)</button>
 
+    <!-- ✅ only-added: DynGamma tab -->
+    <button class="tab-btn"        id="btn-dyngamma" onclick="openDynGamma()">DynGamma</button>
+
   </div>
 
 
 
+  <!-- ✅ A main view (original) -->
   <div class="grid">
 
     <div class="panel controls">
@@ -684,7 +707,47 @@
 
 
 
+  <!-- ✅ only-added: DynGamma view -->
+  <div id="dyngamma_view" class="hidden">
+    <iframe id="dyngamma_iframe" title="DynGamma"></iframe>
+  </div>
+
+
+
 <script>
+
+/* =========================
+   ✅ only-added: DynGamma integration helpers
+========================= */
+function openDynGamma(){
+  const mainGrid = document.querySelector('.grid');
+  const dynView  = document.getElementById('dyngamma_view');
+  const dynBtn   = document.getElementById('btn-dyngamma');
+
+  // hide A view, show DynGamma
+  if(mainGrid) mainGrid.classList.add('hidden');
+  if(dynView)  dynView.classList.remove('hidden');
+
+  // active tab style
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  dynBtn.classList.add('active');
+
+  // load iframe srcdoc once
+  const iframe = document.getElementById('dyngamma_iframe');
+  if(iframe && !iframe.srcdoc){
+    const tpl = document.getElementById('dyngamma_tpl');
+    iframe.srcdoc = tpl ? tpl.innerHTML : '<!doctype html><html><body>DynGamma template missing.</body></html>';
+  }
+}
+
+function closeDynGammaIfOpen(){
+  const mainGrid = document.querySelector('.grid');
+  const dynView  = document.getElementById('dyngamma_view');
+  if(dynView && !dynView.classList.contains('hidden')){
+    dynView.classList.add('hidden');
+    if(mainGrid) mainGrid.classList.remove('hidden');
+  }
+}
 
 /* =========================
 
@@ -1035,6 +1098,9 @@ function findBreakEvens(xs, ys){
 ========================= */
 
 function setMode(mode){
+
+  /* ✅ only-added: if DynGamma is open, close it when switching back to A modes */
+  closeDynGammaIfOpen();
 
   currentMode = mode;
 
@@ -1715,6 +1781,652 @@ window.onload = function(){
 window.addEventListener('resize', () => { if (chartInstance) chartInstance.resize(); });
 
 </script>
+
+
+
+<!-- =========================
+     ✅ only-added: DynGamma template (B program) - embedded as-is
+========================= -->
+<template id="dyngamma_tpl">
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Futures + Options Gamma Synthesizer (Black-76 + Carry)</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+
+  <style>
+    :root{
+      --bg-dark:#0f172a; --panel-dark:#1e293b; --card-dark:#334155;
+      --primary:#6366f1; --accent:#22d3ee; --text-main:#f1f5f9; --text-muted:#94a3b8;
+      --opt-color: #d946ef; --fut-color: #f59e0b; --net-color: #10b981;
+    }
+    body{margin:0;font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg-dark);color:var(--text-main);height:100vh;display:flex;flex-direction:column;}
+    .header{background:#1e293b;padding:15px 24px;border-bottom:1px solid #334155;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;}
+    .header h2{margin:0;color:var(--accent);font-size:1.2rem;}
+    .mode-btns{display:flex;gap:8px;flex-wrap:wrap;}
+    .mode-btns button{background:#334155;color:#fff;border:1px solid #475569;padding:6px 12px;cursor:pointer;border-radius:4px;transition:0.2s;}
+    .mode-btns button:hover{background:#475569;}
+    .mode-btns button.active{background:var(--primary);border-color:var(--primary);}
+
+    .main-container{display:grid;grid-template-columns:340px 1fr;gap:20px;padding:20px;flex:1;overflow:hidden;min-height:0;}
+    .controls{background:var(--panel-dark);padding:20px;border-radius:12px;overflow-y:auto;border:1px solid #334155;min-height:0;}
+    .section-head{font-size:0.8rem;color:var(--accent);text-transform:uppercase;margin:15px 0 8px;font-weight:bold;border-left:3px solid var(--accent);padding-left:8px;}
+    .section-head:first-child{margin-top:0;}
+
+    .input-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
+    .input-row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;}
+    .input-group label{display:block;font-size:0.75rem;color:var(--text-muted);margin-bottom:4px;}
+    .input-group input, .input-group select{
+      width:100%;background:#0f172a;border:1px solid #475569;color:#fff;padding:6px;border-radius:4px;box-sizing:border-box;
+    }
+    .input-group input:disabled{opacity:.7;cursor:not-allowed;}
+    .toggle{
+      display:flex;align-items:center;gap:8px;font-size:.8rem;color:var(--text-muted);
+      background:#0f172a;border:1px solid #475569;border-radius:6px;padding:8px 10px;margin-top:8px;
+    }
+    .toggle input{transform:scale(1.1);}
+
+    .hedge-btn{
+      width:100%;background:linear-gradient(90deg, #4f46e5, #6366f1);color:white;border:none;padding:10px;border-radius:6px;
+      cursor:pointer;font-weight:bold;margin-top:10px;transition:0.2s;
+    }
+    .hedge-btn:hover{filter:brightness(1.1);}
+
+    .chart-box{background:#fff;border-radius:12px;padding:15px;position:relative;display:flex;flex-direction:column;min-height:0;overflow:hidden;}
+    .chart-container{flex:1;position:relative;min-height:320px;}
+    canvas{width:100% !important;height:100% !important;}
+
+    .info-panel{margin-top:15px;padding:15px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;color:#334155;}
+    .info-title{font-weight:bold;font-size:1rem;margin-bottom:5px;color:#0f172a;}
+    .info-desc{font-size:0.9rem;line-height:1.5;}
+    .math-tag{background:#e0e7ff;color:#4338ca;padding:2px 6px;border-radius:4px;font-family:monospace;font-weight:bold;}
+
+    /* ✅ added: analysis target radio grid (same style language as your older app) */
+    .radio-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px;}
+    .radio-grid label{
+      background:var(--card-dark);
+      padding:8px 6px;
+      border-radius:6px;
+      cursor:pointer;
+      text-align:center;
+      font-size:.78rem;
+      border:1px solid #475569;
+      transition:0.2s;
+      user-select:none;
+    }
+    .radio-grid label:hover{background:#334155;}
+    .radio-grid input{display:none;}
+    .radio-grid input:checked + span{color:var(--accent);font-weight:700;}
+    .radio-grid input:checked + span::before{content:"● ";color:var(--accent);}
+
+    @media (max-width: 920px){
+      .main-container{grid-template-columns:1fr;}
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h2>Futures + Options Synthesizer (Black-76 + Carry)</h2>
+  <div class="mode-btns">
+    <button id="btn-long"  onclick="setStrategy('long')">Long Gamma (Buy Vol)</button>
+    <button id="btn-short" onclick="setStrategy('short')">Short Gamma (Sell Vol)</button>
+  </div>
+</div>
+
+<div class="main-container">
+  <div class="controls">
+
+    <div class="section-head">1. Market Condition (Cost-of-Carry)</div>
+
+    <div class="input-group">
+      <label>Spot Price (S)</label>
+      <input type="number" id="S" value="100" oninput="scheduleUpdate(true)">
+    </div>
+
+    <div class="input-row">
+      <div class="input-group">
+        <label>Risk-free Rate (r)</label>
+        <input type="number" id="r" value="0.02" step="0.001" oninput="scheduleUpdate(true)">
+      </div>
+      <div class="input-group">
+        <label>Carry / Dividend Yield (q)</label>
+        <input type="number" id="q" value="0.00" step="0.001" oninput="scheduleUpdate(true)">
+      </div>
+    </div>
+
+    <div class="input-group">
+      <label>Days to Maturity (T) — used for F = S·exp((r−q)T)</label>
+      <input type="number" id="carry_T" value="30" min="1" step="1" oninput="scheduleUpdate(true)">
+    </div>
+
+    <div class="toggle">
+      <input type="checkbox" id="autoF" checked onchange="scheduleUpdate(true)">
+      <label for="autoF" style="margin:0;cursor:pointer;">Auto derive F from Spot (cost-of-carry)</label>
+    </div>
+
+    <div class="input-group" style="margin-top:10px;">
+      <label>Current Futures Price (F)</label>
+      <input type="number" id="F" value="100" oninput="scheduleUpdate(false)">
+    </div>
+
+    <div style="font-size:0.75rem;color:#94a3b8;margin-top:6px;line-height:1.4;">
+      - 若勾選 Auto：F 會由 <b>S, r, q, T</b> 自動推導（公平價）<br>
+      - 若取消 Auto：你可手動輸入市場 F（含基差）
+    </div>
+
+    <div class="section-head" style="color:var(--opt-color);border-color:var(--opt-color)">2. Option Leg (Black-76 on F)</div>
+    <div class="input-row">
+      <div class="input-group">
+        <label>Type</label>
+        <select id="opt_type" onchange="scheduleUpdate(false)">
+          <option value="call">Call</option>
+          <option value="put">Put</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <label>Side</label>
+        <select id="opt_side" onchange="scheduleUpdate(false)">
+          <option value="long">Long (Buy)</option>
+          <option value="short">Short (Sell)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="input-row">
+      <div class="input-group"><label>Strike (K)</label><input type="number" id="opt_K" value="100" oninput="scheduleUpdate(false)"></div>
+      <div class="input-group"><label>Days (T)</label><input type="number" id="opt_T" value="30" min="1" step="1" oninput="scheduleUpdate(false)"></div>
+    </div>
+
+    <div class="input-row">
+      <div class="input-group"><label>Vol (σ)</label><input type="number" id="opt_sigma" value="0.30" step="0.01" min="0.0001" oninput="scheduleUpdate(false)"></div>
+      <div class="input-group"><label>Qty</label><input type="number" id="opt_qty" value="1" step="1" oninput="scheduleUpdate(false)"></div>
+    </div>
+
+    <div class="section-head" style="color:var(--fut-color);border-color:var(--fut-color)">3. Futures Leg (PnL uses Entry F₀)</div>
+    <div class="input-row">
+      <div class="input-group">
+        <label>Side</label>
+        <select id="fut_side" onchange="scheduleUpdate(false)">
+          <option value="long">Long</option>
+          <option value="short">Short</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <label>Qty</label>
+        <input type="number" id="fut_qty" value="0" step="0.1" oninput="scheduleUpdate(false)">
+      </div>
+    </div>
+
+    <div class="input-group">
+      <label>Entry Price (F₀) — your actual trade price</label>
+      <input type="number" id="fut_price" value="100" oninput="scheduleUpdate(false)">
+    </div>
+
+    <button class="hedge-btn" onclick="autoHedge()">⚡ Auto Hedge (Delta Neutral)</button>
+    <div style="font-size:0.75rem;color:#94a3b8;margin-top:5px;text-align:center;">
+      以 Black-76 的對 F Delta 避險（<b>不會改動 F₀</b>）
+    </div>
+
+    <!-- ✅ added: analysis target -->
+    <div class="section-head">4. Analysis Target</div>
+    <div class="radio-grid">
+      <label><input type="radio" name="g" value="payoff" checked onchange="scheduleUpdate(false)"><span>P/L</span></label>
+      <label><input type="radio" name="g" value="delta" onchange="scheduleUpdate(false)"><span>Delta</span></label>
+      <label><input type="radio" name="g" value="gamma" onchange="scheduleUpdate(false)"><span>Gamma</span></label>
+      <label><input type="radio" name="g" value="vega" onchange="scheduleUpdate(false)"><span>Vega</span></label>
+      <label><input type="radio" name="g" value="theta" onchange="scheduleUpdate(false)"><span>Theta</span></label>
+      <label><input type="radio" name="g" value="rho" onchange="scheduleUpdate(false)"><span>Rho</span></label>
+    </div>
+
+  </div>
+
+  <div class="chart-box">
+    <div class="chart-container">
+      <canvas id="chart"></canvas>
+    </div>
+    <div class="info-panel" id="infoBox"></div>
+  </div>
+</div>
+
+<script>
+/* =========================
+   Register annotation plugin
+========================= */
+(function registerAnnotation(){
+  try{
+    const ann = window.ChartAnnotation || window['chartjs-plugin-annotation'];
+    if (ann && window.Chart && Chart.register) Chart.register(ann);
+  }catch(e){}
+})();
+
+/* =========================
+   Normal PDF/CDF
+========================= */
+const MathTool = {
+  n(x){ return Math.exp(-0.5*x*x)/Math.sqrt(2*Math.PI); },
+  N(x){
+    let t=1/(1+0.2316419*Math.abs(x));
+    let d=0.3989423*Math.exp(-x*x/2);
+    let p=d*t*(0.3193815+t*(-0.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));
+    return x>0?1-p:p;
+  }
+};
+
+/* =========================
+   Cost-of-carry: F = S * exp((r - q)T)
+========================= */
+function deriveF(S, r, q, T){
+  T = Math.max(1e-10, T);
+  S = Math.max(1e-12, S);
+  return S * Math.exp((r - q) * T);
+}
+
+/* =========================
+   Black-76 (Options on Futures) + Greeks
+========================= */
+function black76(F, K, T, r, sigma, type){
+  T = Math.max(1e-8, T);
+  sigma = Math.max(1e-10, sigma);
+  F = Math.max(1e-12, F);
+  K = Math.max(1e-12, K);
+
+  const sqrtT = Math.sqrt(T);
+  const d1 = (Math.log(F/K) + 0.5*sigma*sigma*T) / (sigma*sqrtT);
+  const d2 = d1 - sigma*sqrtT;
+  const disc = Math.exp(-r*T);
+  const nd1 = MathTool.n(d1);
+
+  let price=0, delta=0;
+  if(type === 'call'){
+    price = disc * (F*MathTool.N(d1) - K*MathTool.N(d2));
+    delta = disc * MathTool.N(d1);
+  }else{
+    price = disc * (K*MathTool.N(-d2) - F*MathTool.N(-d1));
+    delta = disc * (MathTool.N(d1) - 1);
+  }
+
+  const gamma = disc * nd1 / (F * sigma * sqrtT);
+  const vega  = disc * F * nd1 * sqrtT;
+  const theta = (-disc * F * nd1 * sigma / (2*sqrtT) + r*price) / 365;
+  const rho = (-T * price) / 100;
+
+  return { price, delta, gamma, vega, theta, rho, d1, d2, disc };
+}
+
+/* =========================
+   Robust scale (Quantile)
+========================= */
+function quantile(arr, q){
+  if(!arr.length) return null;
+  const a = arr.slice().sort((x,y)=>x-y);
+  const pos = (a.length - 1) * q;
+  const base = Math.floor(pos);
+  const rest = pos - base;
+  if (a[base+1] === undefined) return a[base];
+  return a[base] + rest * (a[base+1] - a[base]);
+}
+
+/* =========================
+   State / RAF debounce
+========================= */
+let chart = null;
+let rafPending = false;
+
+function scheduleUpdate(fromCarry){
+  if(rafPending) return;
+  rafPending = true;
+  requestAnimationFrame(()=>{
+    rafPending = false;
+    if(fromCarry) syncFIfAuto();
+    update();
+  });
+}
+
+function syncFIfAuto(){
+  const auto = document.getElementById('autoF').checked;
+  const Finput = document.getElementById('F');
+  Finput.disabled = auto;
+
+  if(!auto) return;
+
+  const S = +document.getElementById('S').value;
+  const r = +document.getElementById('r').value;
+  const q = +document.getElementById('q').value;
+  const T = (+document.getElementById('carry_T').value)/365;
+
+  const F = deriveF(S, r, q, T);
+  Finput.value = F.toFixed(4);
+}
+
+function setActiveBtn(type){
+  document.getElementById('btn-long').classList.toggle('active', type==='long');
+  document.getElementById('btn-short').classList.toggle('active', type==='short');
+}
+
+/* =========================
+   Inputs
+========================= */
+function getInputs(){
+  return {
+    S: +document.getElementById('S').value,
+    r: +document.getElementById('r').value,
+    q: +document.getElementById('q').value,
+    carryT: (+document.getElementById('carry_T').value)/365,
+    F: +document.getElementById('F').value,
+    opt: {
+      type: document.getElementById('opt_type').value,
+      side: document.getElementById('opt_side').value,
+      K: +document.getElementById('opt_K').value,
+      T: (+document.getElementById('opt_T').value)/365,
+      sigma: +document.getElementById('opt_sigma').value,
+      qty: +document.getElementById('opt_qty').value
+    },
+    fut: {
+      side: document.getElementById('fut_side').value,
+      qty: +document.getElementById('fut_qty').value,
+      price: +document.getElementById('fut_price').value
+    },
+    target: document.querySelector('input[name="g"]:checked')?.value || 'payoff'
+  };
+}
+
+/* =========================
+   Hedge / Strategy
+========================= */
+function autoHedge(){
+  const d = getInputs();
+
+  const b76 = black76(d.F, d.opt.K, d.opt.T, d.r, d.opt.sigma, d.opt.type);
+  const optSign = d.opt.side === 'long' ? 1 : -1;
+  const optNetDelta = b76.delta * d.opt.qty * optSign;
+
+  const reqFutSignedQty = -optNetDelta;
+  const futSide = reqFutSignedQty >= 0 ? 'long' : 'short';
+  document.getElementById('fut_side').value = futSide;
+  document.getElementById('fut_qty').value = Math.abs(reqFutSignedQty).toFixed(3);
+
+  scheduleUpdate(false);
+}
+
+function setStrategy(type){
+  setActiveBtn(type);
+
+  const F = +document.getElementById('F').value;
+
+  document.getElementById('opt_type').value = 'call';
+  document.getElementById('opt_K').value = F;
+  document.getElementById('opt_T').value = 30;
+  document.getElementById('opt_qty').value = 1;
+
+  if(type === 'long'){
+    document.getElementById('opt_side').value = 'long';
+  } else {
+    document.getElementById('opt_side').value = 'short';
+  }
+
+  const f0El = document.getElementById('fut_price');
+  if(!f0El.value || !isFinite(+f0El.value)) f0El.value = F;
+
+  autoHedge();
+}
+
+/* =========================
+   Update / Plot
+========================= */
+function update(){
+  const d = getInputs();
+
+  const range = Math.max(1, d.F * 0.3);
+  const minX = Math.max(0.01, d.F - range);
+  const maxX = d.F + range;
+  const steps = 160;
+  const step = (maxX - minX) / steps;
+
+  let labels = [];
+  let dataOpt = [], dataFut = [], dataNet = [];
+
+  const b76_0 = black76(d.F, d.opt.K, d.opt.T, d.r, d.opt.sigma, d.opt.type);
+  const optPremium = b76_0.price;
+
+  const optSign = d.opt.side === 'long' ? 1 : -1;
+  const futSign = d.fut.side === 'long' ? 1 : -1;
+
+  for(let i=0; i<=steps; i++){
+    const Ft = minX + i*step;
+    labels.push(Ft.toFixed(2));
+
+    if(d.target === 'payoff'){
+      let intrinsic = 0;
+      if(d.opt.type === 'call') intrinsic = Math.max(0, Ft - d.opt.K);
+      else intrinsic = Math.max(0, d.opt.K - Ft);
+
+      const pnlOpt = (intrinsic - optPremium) * d.opt.qty * optSign;
+      const pnlFut = (Ft - d.fut.price) * d.fut.qty * futSign;
+
+      dataOpt.push(pnlOpt);
+      dataFut.push(pnlFut);
+      dataNet.push(pnlOpt + pnlFut);
+    }else{
+      const g = black76(Ft, d.opt.K, d.opt.T, d.r, d.opt.sigma, d.opt.type);
+
+      let optVal = 0;
+      if(d.target === 'delta') optVal = g.delta;
+      else if(d.target === 'gamma') optVal = g.gamma;
+      else if(d.target === 'vega') optVal = g.vega/100;
+      else if(d.target === 'theta') optVal = g.theta;
+      else if(d.target === 'rho') optVal = g.rho;
+
+      optVal = optVal * d.opt.qty * optSign;
+
+      let futVal = 0;
+      if(d.target === 'delta') futVal = 1 * d.fut.qty * futSign;
+
+      dataOpt.push(optVal);
+      dataFut.push(futVal);
+      dataNet.push(optVal + futVal);
+    }
+  }
+
+  drawChart(labels, dataOpt, dataFut, dataNet, d);
+  updateInfo(d, b76_0, optPremium);
+}
+
+function updateInfo(d, b76_0, optPremium){
+  const optSign = d.opt.side === 'long' ? 1 : -1;
+  const futSign = d.fut.side === 'long' ? 1 : -1;
+
+  const optNetDelta = b76_0.delta * d.opt.qty * optSign;
+  const futNetDelta = 1 * d.fut.qty * futSign;
+  const totalDelta = optNetDelta + futNetDelta;
+
+  const isGammaLong = (d.opt.side === 'long');
+
+  let title = isGammaLong ?
+    `<span style="color:#10b981">Long Gamma (做多波動率)</span>` :
+    `<span style="color:#ef4444">Short Gamma (做空波動率)</span>`;
+
+  let explanation = isGammaLong ?
+    `Black-76 以 <b>期貨 F</b> 為標的：您持有選擇權（正凸性）並用期貨對沖方向（Delta）。獲利來源是<b>大幅波動</b>；代價通常是時間耗損（Theta）。` :
+    `Black-76 以 <b>期貨 F</b> 為標的：您賣出選擇權（負凹性）並用期貨對沖方向（Delta）。獲利來源是<b>盤整</b>；風險是大波動時避險追不上而損失擴大。`;
+
+  if (Math.abs(totalDelta) > 0.1) {
+    title += ` <span style="font-size:0.8em;color:#f59e0b">(Delta Not Neutral!)</span>`;
+  }
+
+  const F_fair = deriveF(d.S, d.r, d.q, d.carryT);
+
+  const optNetGamma = b76_0.gamma * d.opt.qty * optSign;
+  const optNetVega  = (b76_0.vega/100) * d.opt.qty * optSign;
+  const optNetTheta = b76_0.theta * d.opt.qty * optSign;
+  const optNetRho   = b76_0.rho * d.opt.qty * optSign;
+
+  document.getElementById('infoBox').innerHTML = `
+    <div class="info-title">${title}</div>
+    <div class="info-desc">${explanation}</div>
+
+    <div style="margin-top:10px;font-size:0.85rem;color:#64748b;">
+      <span class="math-tag">Opt Δ(F): ${optNetDelta.toFixed(4)}</span> +
+      <span class="math-tag">Fut Δ: ${futNetDelta.toFixed(4)}</span> =
+      <b>Net Δ: ${totalDelta.toFixed(4)}</b>
+    </div>
+
+    <div style="margin-top:10px;font-size:0.82rem;color:#64748b;line-height:1.6;">
+      <b>Opt Γ(F):</b> <span class="math-tag">${(Math.abs(optNetGamma) < 1e-6 ? "0" : optNetGamma.toFixed(6))}</span>
+      <b style="margin-left:8px;">Vega/1%:</b> <span class="math-tag">${optNetVega.toFixed(4)}</span>
+      <b style="margin-left:8px;">Theta/day:</b> <span class="math-tag">${optNetTheta.toFixed(6)}</span>
+      <b style="margin-left:8px;">Rho/1%:</b> <span class="math-tag">${optNetRho.toFixed(6)}</span>
+    </div>
+
+    <div style="margin-top:10px;font-size:0.82rem;color:#64748b;line-height:1.5;">
+      <b>F</b> 用於：選擇權定價 / Greeks（避險）<br>
+      <b>F₀</b> 用於：你的期貨實際損益（PnL）<br>
+      <span class="math-tag">Opt Premium(t0): ${optPremium.toFixed(4)}</span>
+      <span class="math-tag" style="margin-left:6px;">F (now): ${(+d.F).toFixed(4)}</span>
+      <span class="math-tag" style="margin-left:6px;">F₀ (entry): ${(+d.fut.price).toFixed(4)}</span>
+    </div>
+
+    <div style="margin-top:10px;font-size:0.82rem;color:#64748b;">
+      Carry fair value: <b>F* = S·exp((r−q)T)</b> →
+      <span class="math-tag">${F_fair.toFixed(4)}</span>
+      <span style="margin-left:6px;">(T 取 Carry 區塊的 Days)</span>
+    </div>
+  `;
+}
+
+function drawChart(labels, opt, fut, net, d){
+  const ctx = document.getElementById('chart').getContext('2d');
+  if(chart) chart.destroy();
+
+  const spotF = d.F;
+
+  const pool = net.concat(opt, fut).filter(v => Number.isFinite(v));
+  let yMin = null, yMax = null;
+  if(pool.length > 10){
+    const q02 = quantile(pool, 0.02);
+    const q98 = quantile(pool, 0.98);
+    const span = (q98 - q02) || 1;
+    yMin = q02 - span*0.15;
+    yMax = q98 + span*0.15;
+  }
+
+  const titleMap = {
+    payoff: 'P/L',
+    delta: 'Delta',
+    gamma: 'Gamma',
+    vega: 'Vega (per 1% vol)',
+    theta: 'Theta (per day)',
+    rho: 'Rho (per 1%)'
+  };
+
+  chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: `Option ${titleMap[d.target]}`,
+          data: opt,
+          borderColor: '#d946ef',
+          borderWidth: 2,
+          borderDash: [5,5],
+          pointRadius: 0,
+          tension: (d.target==='payoff') ? 0.35 : 0
+        },
+        {
+          label: `Futures ${titleMap[d.target]}`,
+          data: fut,
+          borderColor: '#f59e0b',
+          borderWidth: 2,
+          borderDash: [5,5],
+          pointRadius: 0,
+          tension: 0
+        },
+        {
+          label: `Net ${titleMap[d.target]}`,
+          data: net,
+          borderColor: '#10b981',
+          borderWidth: 4,
+          pointRadius: 0,
+          fill: (d.target==='payoff')
+            ? {target:'origin', above:'rgba(16,185,129,0.1)', below:'rgba(239,68,68,0.1)'}
+            : false
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          display: true,
+          labels: {
+            color: '#94a3b8',
+            usePointStyle: true,
+            pointStyle: 'line',
+            generateLabels(chart){
+              const datasets = chart.data.datasets || [];
+              return datasets.map((ds, i) => ({
+                text: ds.label,
+                datasetIndex: i,
+                hidden: !chart.isDatasetVisible(i),
+                strokeStyle: ds.borderColor,
+                lineWidth: ds.borderWidth || 2,
+                lineDash: ds.borderDash || [],
+                lineDashOffset: ds.borderDashOffset || 0,
+                pointStyle: 'line',
+                rotation: 0
+              }));
+            }
+          },
+          onClick(e, legendItem, legend){
+            const i = legendItem.datasetIndex;
+            const ci = legend.chart;
+            ci.setDatasetVisibility(i, !ci.isDatasetVisible(i));
+            ci.update();
+          }
+        },
+        annotation: {
+          annotations: {
+            spotLine: {
+              type: 'line',
+              xMin: spotF.toFixed(2),
+              xMax: spotF.toFixed(2),
+              borderColor: '#fbbf24',
+              borderWidth: 2,
+              borderDash: [2,2],
+              label: { content: 'F (now)', display: true, position: 'start', color: '#fbbf24' }
+            }
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { color: '#64748b', maxTicksLimit: 8 }, grid: { color: '#e2e8f0' } },
+        y: { min: yMin, max: yMax, ticks: { color: '#64748b' }, grid: { color: '#e2e8f0' } }
+      }
+    }
+  });
+}
+
+window.addEventListener('load', () => {
+  syncFIfAuto();
+  setStrategy('long');
+
+  setTimeout(()=>scheduleUpdate(true), 0);
+  setTimeout(()=>scheduleUpdate(true), 60);
+});
+window.addEventListener('resize', ()=>scheduleUpdate(false));
+</script>
+
+</body>
+</html>
+</template>
 
 </body>
 

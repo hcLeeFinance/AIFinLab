@@ -465,6 +465,7 @@
     .hidden{ display:none !important; }
 
     
+
     /* =========================
        ✅ only-added: DynGamma view container
     ========================= */
@@ -509,14 +510,12 @@
 
     <button class="tab-btn"        id="btn-bear"     onclick="setMode('bear')">空頭價差 (Bear)</button>
 
-    <!-- ✅ only-added: DynGamma tab -->
     <button class="tab-btn"        id="btn-dyngamma" onclick="openDynGamma()">DynGamma</button>
 
   </div>
 
 
 
-  <!-- ✅ A main view (original) -->
   <div class="grid">
 
     <div class="panel controls">
@@ -707,7 +706,6 @@
 
 
 
-  <!-- ✅ only-added: DynGamma view -->
   <div id="dyngamma_view" class="hidden">
     <iframe id="dyngamma_iframe" title="DynGamma"></iframe>
   </div>
@@ -1494,49 +1492,7 @@ function drawChart(xs, labels, main, l1, l2, type, S0, leg1Obj, leg2Obj){
 
     };
 
-
-
-    const baseSeries = (currentMode === 'single') ? l1 : main;
-
-    const bes = findBreakEvens(xs, baseSeries);
-
-
-
-    bes.slice(0, 6).forEach((xBE, idx) => {
-
-      const key = `beLine${idx}`;
-
-      annotations[key] = {
-
-        type:'line',
-
-        xMin:xBE, xMax:xBE,
-
-        borderColor:'#d946ef',
-
-        borderWidth:2,
-
-        borderDash:[2,3],
-
-        label:{
-
-          content:`BE ${xBE.toFixed(2)}`,
-
-          display:true,
-
-          position:'end',
-
-          yAdjust:-8,
-
-          color:'#d946ef',
-
-          backgroundColor:'rgba(255,255,255,0.8)'
-
-        }
-
-      };
-
-    });
+    // Removed BE lines logic here as requested
 
   }
 
@@ -1573,8 +1529,8 @@ function drawChart(xs, labels, main, l1, l2, type, S0, leg1Obj, leg2Obj){
   if (type === 'payoff') {
 
     html += `<div class="legend-indicator"><div class="line-dashed" style="border-color:#94a3b8"></div> P/L = 0</div>`;
-
-    html += `<div class="legend-indicator"><div class="line-dashed" style="border-color:#d946ef"></div> Break-even</div>`;
+    
+    // Removed BE legend here as requested
 
   }
 
@@ -1784,9 +1740,6 @@ window.addEventListener('resize', () => { if (chartInstance) chartInstance.resiz
 
 
 
-<!-- =========================
-     ✅ only-added: DynGamma template (B program) - embedded as-is
-========================= -->
 <template id="dyngamma_tpl">
 <!DOCTYPE html>
 <html lang="zh-TW">
@@ -1972,15 +1925,14 @@ window.addEventListener('resize', () => { if (chartInstance) chartInstance.resiz
       以 Black-76 的對 F Delta 避險（<b>不會改動 F₀</b>）
     </div>
 
-    <!-- ✅ added: analysis target -->
     <div class="section-head">4. Analysis Target</div>
     <div class="radio-grid">
       <label><input type="radio" name="g" value="payoff" checked onchange="scheduleUpdate(false)"><span>P/L</span></label>
       <label><input type="radio" name="g" value="delta" onchange="scheduleUpdate(false)"><span>Delta</span></label>
       <label><input type="radio" name="g" value="gamma" onchange="scheduleUpdate(false)"><span>Gamma</span></label>
-      <label><input type="radio" name="g" value="vega" onchange="scheduleUpdate(false)"><span>Vega</span></label>
+      <label><input type="radio" name="g" value="vega"  onchange="scheduleUpdate(false)"><span>Vega</span></label>
       <label><input type="radio" name="g" value="theta" onchange="scheduleUpdate(false)"><span>Theta</span></label>
-      <label><input type="radio" name="g" value="rho" onchange="scheduleUpdate(false)"><span>Rho</span></label>
+      <label><input type="radio" name="g" value="rho"   onchange="scheduleUpdate(false)"><span>Rho</span></label>
     </div>
 
   </div>
@@ -2423,11 +2375,9 @@ window.addEventListener('load', () => {
 });
 window.addEventListener('resize', ()=>scheduleUpdate(false));
 </script>
-
 </body>
 </html>
 </template>
 
 </body>
-
 </html>

@@ -196,20 +196,20 @@
 <div class="panel">
 <h3>收入與生活帳戶</h3>
 <div class="grid">
-  <div class="field"><label for="monthlyIncome">月實領收入（合計）</label><input id="monthlyIncome" type="number" value="70000" step="any"></div>
-  <div class="field"><label for="otherLiving">其他生活支出（不含房租／房貸）</label><input id="otherLiving" type="number" value="26000" step="any"></div>
-  <div class="field"><label for="maintenance">買房後管理修繕</label><input id="maintenance" type="number" value="5000" step="any"></div>
-  <div class="field"><label for="premium">基本保費</label><input id="premium" type="number" value="3000" step="any"></div>
-  <div class="field"><label for="retireMonthly">每月退休 ETF</label><input id="retireMonthly" type="number" value="8000" step="any"></div>
+  <div class="field"><label for="monthlyIncome">月實領收入（合計）</label><input id="monthlyIncome" type="text" inputmode="decimal" data-comma value="70,000"></div>
+  <div class="field"><label for="otherLiving">其他生活支出（不含房租／房貸）</label><input id="otherLiving" type="text" inputmode="decimal" data-comma value="26,000"></div>
+  <div class="field"><label for="maintenance">買房後管理修繕</label><input id="maintenance" type="text" inputmode="decimal" data-comma value="5,000"></div>
+  <div class="field"><label for="premium">基本保費</label><input id="premium" type="text" inputmode="decimal" data-comma value="3,000"></div>
+  <div class="field"><label for="retireMonthly">每月退休 ETF</label><input id="retireMonthly" type="text" inputmode="decimal" data-comma value="8,000"></div>
 </div>
 
 <h3>買房準備帳戶</h3>
 <div class="grid">
-  <div class="field"><label for="existingHomeFund">現有買房準備金</label><input id="existingHomeFund" type="number" value="600000" step="any"></div>
-  <div class="field"><label for="monthlyHomeSaving">每月可投入買房準備</label><input id="monthlyHomeSaving" type="number" value="17000" step="any"></div>
-  <div class="field"><label for="yearEndHomeSaving">年終可投入買房準備</label><input id="yearEndHomeSaving" type="number" value="100000" step="any"></div>
-  <div class="field"><label for="price">目標房價</label><input id="price" type="number" value="10000000" step="any"></div>
-  <div class="field"><label for="extraCost">額外成本與買房後緩衝</label><input id="extraCost" type="number" value="800000" step="any"></div>
+  <div class="field"><label for="existingHomeFund">現有買房準備金</label><input id="existingHomeFund" type="text" inputmode="decimal" data-comma value="600,000"></div>
+  <div class="field"><label for="monthlyHomeSaving">每月可投入買房準備</label><input id="monthlyHomeSaving" type="text" inputmode="decimal" data-comma value="17,000"></div>
+  <div class="field"><label for="yearEndHomeSaving">年終可投入買房準備</label><input id="yearEndHomeSaving" type="text" inputmode="decimal" data-comma value="100,000"></div>
+  <div class="field"><label for="price">目標房價</label><input id="price" type="text" inputmode="decimal" data-comma value="10,000,000"></div>
+  <div class="field"><label for="extraCost">額外成本與買房後緩衝</label><input id="extraCost" type="text" inputmode="decimal" data-comma value="800,000"></div>
   <div class="field"><label for="years">買房年限（年）</label><input id="years" type="number" value="3" step="any"></div>
   <div class="field"><label for="rHomePct">買房準備報酬率（%）</label><input id="rHomePct" type="number" value="2.5" step="any"></div>
   <div class="field"><label for="mortgageRatePct">房貸年利率（%）</label><input id="mortgageRatePct" type="number" value="2.5" step="any"></div>
@@ -217,8 +217,8 @@
 
 <h3>退休帳戶</h3>
 <div class="grid">
-  <div class="field"><label for="existingRetirement">現有退休帳戶</label><input id="existingRetirement" type="number" value="0" step="any"></div>
-  <div class="field"><label for="retireSpending">退休後每個月的花費估計</label><input id="retireSpending" type="number" value="42000" step="any"></div>
+  <div class="field"><label for="existingRetirement">現有退休帳戶</label><input id="existingRetirement" type="text" inputmode="decimal" data-comma value="0"></div>
+  <div class="field"><label for="retireSpending">退休後每個月的花費估計</label><input id="retireSpending" type="text" inputmode="decimal" data-comma value="42,000"></div>
   <div class="field"><label for="rRetirePct">退休報酬率（%）</label><input id="rRetirePct" type="number" value="10" step="any"></div>
   <div class="field"><label for="targetReturnPct">退休目標報酬率（%）</label><input id="targetReturnPct" type="number" value="4" step="any"></div>
 </div>
@@ -253,7 +253,45 @@
 <p class="hint">本工具僅供教學試算，所有數字皆為估算，不代表未來實際報酬或利率，也不構成投資或購屋建議。</p>
 
 <script>
-function num(id) { return parseFloat(document.getElementById(id).value) || 0; }
+function stripComma(value) {
+  return String(value).replace(/,/g, '');
+}
+
+function num(id) {
+  return parseFloat(stripComma(document.getElementById(id).value)) || 0;
+}
+
+function commaValue(value) {
+  const raw = stripComma(value).trim();
+  if (raw === '' || raw === '-' || raw === '.') return raw;
+
+  const match = raw.match(/^(-?)(\d*)(\.\d*)?$/);
+  if (!match) return value;
+
+  const sign = match[1];
+  const whole = match[2] || '0';
+  const decimal = match[3] || '';
+  return sign + Number(whole).toLocaleString('en-US') + decimal;
+}
+
+function formatCommaInput(input) {
+  const oldValue = input.value;
+  const oldCursor = input.selectionStart || oldValue.length;
+  const digitsBeforeCursor = stripComma(oldValue.slice(0, oldCursor)).length;
+
+  input.value = commaValue(oldValue);
+
+  let digitsSeen = 0;
+  let newCursor = input.value.length;
+  for (let i = 0; i < input.value.length; i++) {
+    if (input.value[i] !== ',') digitsSeen++;
+    if (digitsSeen >= digitsBeforeCursor) {
+      newCursor = i + 1;
+      break;
+    }
+  }
+  input.setSelectionRange(newCursor, newCursor);
+}
 
 function round(x) {
   const abs = Math.abs(x);
@@ -452,11 +490,19 @@ function loadPreset() {
     extraCost: 800000, years: 3, existingRetirement: 0, retireSpending: 42000,
     rHomePct: 2.5, mortgageRatePct: 2.5, rRetirePct: 10, targetReturnPct: 4
   };
-  for (const id in values) document.getElementById(id).value = values[id];
+  for (const id in values) {
+    const input = document.getElementById(id);
+    input.value = input.dataset.comma !== undefined ? commaValue(values[id]) : values[id];
+  }
   calculate();
 }
 
-document.querySelectorAll('input').forEach(el => el.addEventListener('input', calculate));
+document.querySelectorAll('input').forEach(el => {
+  el.addEventListener('input', () => {
+    if (el.dataset.comma !== undefined) formatCommaInput(el);
+    calculate();
+  });
+});
 calculate();
 </script>
 </body>

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
@@ -140,22 +140,18 @@
     margin: 2px 0 14px;
   }
 
-  .frac {
-    display: inline-block;
-    vertical-align: middle;
-    text-align: center;
-    margin: 0 4px;
+  math.formula {
+    font-family: "Times New Roman", "DFKai-SB", "BiauKai", "標楷體", serif;
+    font-size: 1.06em;
   }
 
-  .frac .num {
+  .formula-line {
     display: block;
-    padding: 0 4px 3px;
-    border-bottom: 1.5px solid #1f2933;
+    margin: 2px 0;
   }
 
-  .frac .den {
-    display: block;
-    padding: 3px 4px 0;
+  .formula-note {
+    color: #5b6b66;
   }
 
   .btnrow { margin: 18px 0 6px; }
@@ -177,6 +173,29 @@
     color: #2f6f73;
   }
 
+
+  .calc-block {
+    display: grid;
+    gap: 6px;
+  }
+
+  .calc-line {
+    display: grid;
+    grid-template-columns: 3.2em minmax(0, 1fr);
+    gap: 10px;
+    align-items: start;
+  }
+
+  .calc-label {
+    color: #5b6b66;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .calc-result {
+    color: #153b3f;
+    font-weight: 700;
+  }
   .judge-ok { color: #1d6b3a; font-weight: 700; }
   .judge-warn { color: #a15c00; font-weight: 700; }
   .judge-bad { color: #b3261e; font-weight: 700; }
@@ -187,7 +206,7 @@
 <h1>買房與退休現金流整合計算機</h1>
 
 <div class="panel">
-<p>這個工具會同時檢查兩件事：買房準備金與貸款是否足夠、買房後每月現金流是否吃得住，以及退休帳戶能不能持續累積到退休目標。請依序填入「收入與生活帳戶」「買房準備帳戶」「退休帳戶」三個區塊的數字，下方會自動算出買房準備金、頭期款、貸款、月付、買房後現金流、退休目標與退休累積，並給出簡單的判斷結果。</p>
+<p>這個工具會同時檢查三件事：買房前每月是否真的存得出頭期款、買房準備金與貸款是否足夠、買房後每月現金流是否吃得住，以及退休帳戶能不能持續累積到退休目標。請依序填入「收入與生活帳戶」「買房準備帳戶」「退休帳戶」三個區塊的數字，下方會自動算出買房前現金流、買房準備金、頭期款、貸款、月付、買房後現金流、退休目標與退休累積，並給出簡單的判斷結果。</p>
 <p class="hint">所有欄位請直接輸入你自己的數字，下方計算結果會立即更新。</p>
 </div>
 
@@ -197,6 +216,7 @@
 <h3>收入與生活帳戶</h3>
 <div class="grid">
   <div class="field"><label for="monthlyIncome">月實領收入（合計）</label><input id="monthlyIncome" type="text" inputmode="decimal" data-comma value="70,000"></div>
+  <div class="field"><label for="rent">房租</label><input id="rent" type="text" inputmode="decimal" data-comma value="16,000"></div>
   <div class="field"><label for="otherLiving">其他生活支出（不含房租／房貸）</label><input id="otherLiving" type="text" inputmode="decimal" data-comma value="26,000"></div>
   <div class="field"><label for="maintenance">買房後管理修繕</label><input id="maintenance" type="text" inputmode="decimal" data-comma value="5,000"></div>
   <div class="field"><label for="premium">基本保費</label><input id="premium" type="text" inputmode="decimal" data-comma value="3,000"></div>
@@ -233,7 +253,7 @@
   <tr><th style="width:32%">項目</th><th>計算</th></tr>
 </table>
 
-<h2>三、買房後現金流檢查</h2>
+<h2>三、買房前後現金流檢查</h2>
 <table id="cashflowTable">
   <tr><th style="width:32%">項目</th><th>計算</th></tr>
 </table>
@@ -245,7 +265,7 @@
 
 <h2>五、小結</h2>
 <table id="summaryTable">
-  <tr><th>買房年限</th><th>準備金</th><th>貸款</th><th>月付</th><th>月流量</th><th>30年退休金</th><th>退休差額</th></tr>
+  <tr><th>買房年限</th><th>準備金</th><th>貸款</th><th>月付</th><th>買前流量</th><th>買後流量</th><th>30年退休金</th><th>退休差額</th></tr>
 </table>
 <p id="judgeText"></p>
 
@@ -306,6 +326,43 @@ function fmt(x) {
   return round(x).toLocaleString('en-US');
 }
 
+function esc(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function math(content) {
+  return `<math class="formula" display="inline">${content}</math>`;
+}
+
+function mi(value) { return `<mi>${esc(value)}</mi>`; }
+function mn(value) { return `<mn>${esc(value)}</mn>`; }
+function mo(value) { return `<mo>${esc(value)}</mo>`; }
+function mt(value) { return `<mtext>${esc(value)}</mtext>`; }
+function mrow(content) { return `<mrow>${content}</mrow>`; }
+function msup(base, exp) { return `<msup>${mrow(base)}${mn(exp)}</msup>`; }
+function msupExpr(base, exp) { return `<msup>${mrow(base)}${mrow(exp)}</msup>`; }
+function mfrac(num, den) { return `<mfrac>${mrow(num)}${mrow(den)}</mfrac>`; }
+function approxResult(value) { return `${mo('≈')}${mn(fmt(value))}`; }
+function equalsResult(value) { return `${mo('=')}${mn(fmt(value))}`; }
+function percentMath(label) { return mn(label.replace('%', '')) + mo('%'); }
+function onePlusRate(rateLabel) { return mo('(') + mn('1') + mo('+') + percentMath(rateLabel) + mo(')'); }
+function formulaLine(content) { return `<span class="formula-line">${math(content)}</span>`; }
+function textLine(content) { return `<span class="formula-line formula-note">${content}</span>`; }
+function calcBlock(formula, substitution, result) {
+  return `<div class="calc-block">`
+    + `<div class="calc-line"><span class="calc-label">公式</span><span>${formula}</span></div>`
+    + `<div class="calc-line"><span class="calc-label">代入</span><span>${substitution}</span></div>`
+    + `<div class="calc-line"><span class="calc-label">結果</span><span class="calc-result">${result}</span></div>`
+    + `</div>`;
+}
+
+function resultValue(value, prefix = '') { return `${prefix}${fmt(value)}`; }
+function mathFormula(content) { return math(content); }
 function fvAnnuity(present, rate, n, annualContribution) {
   const growth = Math.pow(1 + rate, n);
   const principalFV = present * growth;
@@ -337,6 +394,11 @@ function cashflowJudge(cf) {
   return { text: '現金流為正且有餘裕，買房後仍可維持退休 ETF', cls: 'judge-ok' };
 }
 
+function beforeCashflowJudge(cf) {
+  if (cf < 0) return { text: '買房前現金流為負，這個每月買房準備金目前存不出來', cls: 'judge-bad' };
+  if (cf < 5000) return { text: '買房前現金流勉強打平，準備期間安全邊際薄', cls: 'judge-warn' };
+  return { text: '買房前現金流為正，頭期款準備較能持續', cls: 'judge-ok' };
+}
 function retireJudge(diff) {
   return diff >= 0
     ? { text: '滿足退休目標', cls: 'judge-ok' }
@@ -360,6 +422,7 @@ function clearRows(table) {
 
 function calculate() {
   const monthlyIncome = num('monthlyIncome');
+  const rent = num('rent');
   const otherLiving = num('otherLiving');
   const maintenance = num('maintenance');
   const premium = num('premium');
@@ -390,6 +453,7 @@ function calculate() {
   const loanAmount = Math.max(price - usableDownPayment, 0);
   const monthlyMortgage = mortgageMonthlyPayment(loanAmount, mortgageRate);
 
+  const beforeCashflow = monthlyIncome - rent - otherLiving - premium - monthlyHomeSaving - retireMonthly;
   const monthlyCashflow = monthlyIncome - monthlyMortgage - maintenance - otherLiving - premium - retireMonthly;
 
   const retirementTarget = (retireSpending * 12) / targetReturnRate;
@@ -399,65 +463,137 @@ function calculate() {
   const retireAt30 = fvAnnuity(existingRetirement, rRetire, 30, annualRetireContribution);
   const retireSurplus = retireAt30.total - retirementTarget;
 
-  // 二、買房準備
   const rHomeLabel = pctLabel(num('rHomePct'));
+  const rRetireLabel = pctLabel(num('rRetirePct'));
+  const targetReturnLabel = pctLabel(num('targetReturnPct'));
+
+  // 二、買房準備
   const homeTable = document.getElementById('homeTable');
   clearRows(homeTable);
-  row(homeTable, '年度買房投入',
-    `${fmt(monthlyHomeSaving)} x 12 + ${fmt(yearEndHomeSaving)} = ${fmt(annualHomeContribution)}`);
-  row(homeTable, `現有 ${fmt(existingHomeFund)} 投資 ${years} 年`,
-    `${fmt(existingHomeFund)} x (1+${rHomeLabel})^${years} = 約 ${fmt(homeFV.principalFV)}`);
-  row(homeTable, `每年投入 ${fmt(annualHomeContribution)}，連續 ${years} 年`,
-    `${fmt(annualHomeContribution)} x [(1+${rHomeLabel})^${years}-1]/${rHomeLabel} = 約 ${fmt(homeFV.contribFV)}`);
-  row(homeTable, `${years} 年後買房準備金`,
-    `${fmt(homeFV.principalFV)} + ${fmt(homeFV.contribFV)} = 約 ${fmt(fvHome)}`);
+  row(homeTable, '年度買房投入', calcBlock(
+    mathFormula(mt('每月可投入買房準備') + mo('×') + mn('12') + mo('+') + mt('年終可投入買房準備')),
+    mathFormula(mn(fmt(monthlyHomeSaving)) + mo('×') + mn('12') + mo('+') + mn(fmt(yearEndHomeSaving))),
+    resultValue(annualHomeContribution)
+  ));
+  row(homeTable, `現有 ${fmt(existingHomeFund)} 投資 ${years} 年`, calcBlock(
+    mathFormula(mt('現有買房準備金') + mo('×') + msupExpr(mo('(') + mn('1') + mo('+') + mt('買房準備報酬率') + mo(')'), mt('買房年限'))),
+    mathFormula(mn(fmt(existingHomeFund)) + mo('×') + msup(onePlusRate(rHomeLabel), years)),
+    `約 ${fmt(homeFV.principalFV)}`
+  ));
+  row(homeTable, `每年投入 ${fmt(annualHomeContribution)}，連續 ${years} 年`, calcBlock(
+    mathFormula(mt('年度投入') + mo('×') + mfrac(msupExpr(mo('(') + mn('1') + mo('+') + mt('買房準備報酬率') + mo(')'), mt('買房年限')) + mo('-') + mn('1'), mt('買房準備報酬率'))),
+    mathFormula(mn(fmt(annualHomeContribution)) + mo('×') + mfrac(msup(onePlusRate(rHomeLabel), years) + mo('-') + mn('1'), percentMath(rHomeLabel))),
+    `約 ${fmt(homeFV.contribFV)}`
+  ));
+  row(homeTable, `${years} 年後買房準備金`, calcBlock(
+    mathFormula(mt('現有準備金終值') + mo('+') + mt('年度投入終值')),
+    mathFormula(mn(fmt(homeFV.principalFV)) + mo('+') + mn(fmt(homeFV.contribFV))),
+    `約 ${fmt(fvHome)}`
+  ));
   row(homeTable, '買房準備目標',
-    `理想頭期款 = ${fmt(price)} x 20% = ${fmt(idealDownPayment)}；買房準備目標 = 理想頭期款 + 額外成本與緩衝 = ${fmt(idealDownPayment)} + ${fmt(extraCost)} = ${fmt(buyTarget)}`);
-  row(homeTable, homeGap >= 0 ? '買房準備金缺口' : '買房準備金超過目標',
-    `買房準備目標 - 買房準備金 = ${fmt(buyTarget)} - ${fmt(fvHome)} = ${fmt(Math.abs(homeGap))}`);
-  row(homeTable, '可用頭期款',
-    `買房準備金 - 額外成本與緩衝 = ${fmt(fvHome)} - ${fmt(extraCost)} = ${fmt(usableDownPayment)}`);
-  row(homeTable, downShortfall >= 0 ? '頭期款不足額' : '頭期款超過額',
-    `理想頭期款 - 可用頭期款 = ${fmt(idealDownPayment)} - ${fmt(usableDownPayment)} = ${fmt(Math.abs(downShortfall))}`);
-  row(homeTable, '貸款金額',
-    `房價 - 可用頭期款 = ${fmt(price)} - ${fmt(usableDownPayment)} = ${fmt(loanAmount)}`);
+    calcBlock(
+      mathFormula(mt('房價') + mo('×') + mn('20') + mo('%')),
+      mathFormula(mn(fmt(price)) + mo('×') + mn('20') + mo('%')),
+      resultValue(idealDownPayment)
+    )
+    + calcBlock(
+      mathFormula(mt('理想頭期款') + mo('+') + mt('額外成本與緩衝')),
+      mathFormula(mn(fmt(idealDownPayment)) + mo('+') + mn(fmt(extraCost))),
+      resultValue(buyTarget)
+    )
+  );
+  row(homeTable, homeGap >= 0 ? '買房準備金缺口' : '買房準備金超過目標', calcBlock(
+    mathFormula(homeGap >= 0 ? mt('買房準備目標') + mo('-') + mt('買房準備金') : mt('買房準備金') + mo('-') + mt('買房準備目標')),
+    mathFormula(homeGap >= 0
+      ? mn(fmt(buyTarget)) + mo('-') + mn(fmt(fvHome))
+      : mn(fmt(fvHome)) + mo('-') + mn(fmt(buyTarget))),
+    resultValue(Math.abs(homeGap))
+  ));
+  row(homeTable, '可用頭期款', calcBlock(
+    mathFormula(mt('買房準備金') + mo('-') + mt('額外成本與緩衝')),
+    mathFormula(mn(fmt(fvHome)) + mo('-') + mn(fmt(extraCost))),
+    resultValue(usableDownPayment)
+  ));
+  row(homeTable, downShortfall >= 0 ? '頭期款不足額' : '頭期款超過額', calcBlock(
+    mathFormula(downShortfall >= 0 ? mt('理想頭期款') + mo('-') + mt('可用頭期款') : mt('可用頭期款') + mo('-') + mt('理想頭期款')),
+    mathFormula(downShortfall >= 0
+      ? mn(fmt(idealDownPayment)) + mo('-') + mn(fmt(usableDownPayment))
+      : mn(fmt(usableDownPayment)) + mo('-') + mn(fmt(idealDownPayment))),
+    resultValue(Math.abs(downShortfall))
+  ));
+  row(homeTable, '貸款金額', calcBlock(
+    mathFormula(mt('房價') + mo('-') + mt('可用頭期款')),
+    mathFormula(mn(fmt(price)) + mo('-') + mn(fmt(usableDownPayment))),
+    resultValue(loanAmount)
+  ));
   const mortgageAnnualLabel = pctLabel(num('mortgageRatePct'));
   const mortgageMonthlyLabel = pctLabelPrecise(num('mortgageRatePct') / 12, 4);
   const mortgageCoeff = loanAmount === 0 ? 0 : monthlyMortgage / loanAmount;
   row(homeTable, '房貸月付',
-    `房貸年利率 ${mortgageAnnualLabel} → 月利率 = ${mortgageAnnualLabel} / 12 ≈ ${mortgageMonthlyLabel}；`
-    + `30 年期月付係數 = 月利率 x (1+月利率)^360 / [(1+月利率)^360-1] ≈ ${mortgageCoeff.toFixed(6)}；`
-    + `${fmt(loanAmount)} x ${mortgageCoeff.toFixed(6)} = 約 ${fmt(monthlyMortgage)}`);
+    calcBlock(
+      mathFormula(mt('月利率') + mo('=') + mfrac(mt('房貸年利率'), mn('12'))),
+      mathFormula(mfrac(percentMath(mortgageAnnualLabel), mn('12'))),
+      `約 ${mortgageMonthlyLabel}`
+    )
+    + calcBlock(
+      mathFormula(mt('月付係數') + mo('=') + mfrac(mt('月利率') + mo('×') + msupExpr(mo('(') + mn('1') + mo('+') + mt('月利率') + mo(')'), mn('360')), msupExpr(mo('(') + mn('1') + mo('+') + mt('月利率') + mo(')'), mn('360')) + mo('-') + mn('1'))),
+      mathFormula(mfrac(percentMath(mortgageMonthlyLabel) + mo('×') + msupExpr(mo('(') + mn('1') + mo('+') + percentMath(mortgageMonthlyLabel) + mo(')'), mn('360')), msupExpr(mo('(') + mn('1') + mo('+') + percentMath(mortgageMonthlyLabel) + mo(')'), mn('360')) + mo('-') + mn('1'))),
+      mortgageCoeff.toFixed(6)
+    )
+    + calcBlock(
+      mathFormula(mt('房貸月付') + mo('=') + mt('貸款金額') + mo('×') + mt('月付係數')),
+      mathFormula(mn(fmt(loanAmount)) + mo('×') + mn(mortgageCoeff.toFixed(6))),
+      `約 ${fmt(monthlyMortgage)}`
+    )
+  );
 
   // 三、現金流
   const cfTable = document.getElementById('cashflowTable');
   clearRows(cfTable);
+  const beforeCfJudge = beforeCashflowJudge(beforeCashflow);
   const cfJudge = cashflowJudge(monthlyCashflow);
-  row(cfTable, '買房後月現金流',
-    `月收入 - 房貸月付 - 管理修繕 - 其他生活 - 保費 - 退休 ETF = `
-    + `${fmt(monthlyIncome)} - ${fmt(monthlyMortgage)} - ${fmt(maintenance)} - ${fmt(otherLiving)} - ${fmt(premium)} - ${fmt(retireMonthly)} = `
-    + `<strong>${fmt(monthlyCashflow)}</strong>`);
-  row(cfTable, '判斷', `<span class="${cfJudge.cls}">${cfJudge.text}</span>`);
+  row(cfTable, '買房前月現金流', calcBlock(
+    mathFormula(mt('月收入') + mo('-') + mt('房租') + mo('-') + mt('其他生活') + mo('-') + mt('保費') + mo('-') + mt('買房準備') + mo('-') + mt('退休 ETF')),
+    mathFormula(mn(fmt(monthlyIncome)) + mo('-') + mn(fmt(rent)) + mo('-') + mn(fmt(otherLiving)) + mo('-') + mn(fmt(premium)) + mo('-') + mn(fmt(monthlyHomeSaving)) + mo('-') + mn(fmt(retireMonthly))),
+    resultValue(beforeCashflow)
+  ));
+  row(cfTable, '買房前判斷', `<span class="${beforeCfJudge.cls}">${beforeCfJudge.text}</span>`);
+  row(cfTable, '買房後月現金流', calcBlock(
+    mathFormula(mt('月收入') + mo('-') + mt('房貸月付') + mo('-') + mt('管理修繕') + mo('-') + mt('其他生活') + mo('-') + mt('保費') + mo('-') + mt('退休 ETF')),
+    mathFormula(mn(fmt(monthlyIncome)) + mo('-') + mn(fmt(monthlyMortgage)) + mo('-') + mn(fmt(maintenance)) + mo('-') + mn(fmt(otherLiving)) + mo('-') + mn(fmt(premium)) + mo('-') + mn(fmt(retireMonthly))),
+    resultValue(monthlyCashflow)
+  ));
+  row(cfTable, '買房後判斷', `<span class="${cfJudge.cls}">${cfJudge.text}</span>`);
 
   // 四、退休
-  const rRetireLabel = pctLabel(num('rRetirePct'));
-  const targetReturnLabel = pctLabel(num('targetReturnPct'));
   const retireTable = document.getElementById('retireTable');
   clearRows(retireTable);
-  const retireTargetFrac =
-    `<span class="frac"><span class="num">退休後每個月的花費估計 x 12</span><span class="den">退休目標報酬率</span></span>`
-    + ` = `
-    + `<span class="frac"><span class="num">${fmt(retireSpending)} x 12</span><span class="den">${targetReturnLabel}</span></span>`
-    + ` ≈ ${fmt(retirementTarget)}`;
-  row(retireTable, '退休目標', retireTargetFrac);
-  row(retireTable, `買房當年（第 ${years} 年）退休累積`,
-    `計算：${fmt(existingRetirement)} x (1+${rRetireLabel})^${years} + ${fmt(annualRetireContribution)} x [(1+${rRetireLabel})^${years}-1]/${rRetireLabel} ≈ ${fmt(retireAtBuyYear.total)}`);
-  row(retireTable, '30 年後退休累積',
-    `計算：${fmt(existingRetirement)} x (1+${rRetireLabel})^30 + ${fmt(annualRetireContribution)} x [(1+${rRetireLabel})^30-1]/${rRetireLabel} ≈ ${fmt(retireAt30.total)}`);
+  row(retireTable, '退休目標', calcBlock(
+    mathFormula(mfrac(mt('退休後每個月的花費估計') + mo('×') + mn('12'), mt('退休目標報酬率'))),
+    mathFormula(mfrac(mt('退休後每個月的花費估計') + mo('×') + mn('12'), mt('退休目標報酬率'))
+      + mo('=')
+      + mfrac(mn(fmt(retireSpending)) + mo('×') + mn('12'), percentMath(targetReturnLabel))),
+    `約 ${fmt(retirementTarget)}`
+  ));
+  row(retireTable, `買房當年（第 ${years} 年）退休累積`, calcBlock(
+    mathFormula(mt('現有退休帳戶') + mo('×') + msupExpr(mo('(') + mn('1') + mo('+') + mt('退休報酬率') + mo(')'), mt('買房年限')) + mo('+') + mt('年度退休投入') + mo('×') + mfrac(msupExpr(mo('(') + mn('1') + mo('+') + mt('退休報酬率') + mo(')'), mt('買房年限')) + mo('-') + mn('1'), mt('退休報酬率'))),
+    mathFormula(mn(fmt(existingRetirement)) + mo('×') + msup(onePlusRate(rRetireLabel), years) + mo('+') + mn(fmt(annualRetireContribution)) + mo('×') + mfrac(msup(onePlusRate(rRetireLabel), years) + mo('-') + mn('1'), percentMath(rRetireLabel))),
+    `約 ${fmt(retireAtBuyYear.total)}`
+  ));
+  row(retireTable, '30 年後退休累積', calcBlock(
+    mathFormula(mt('現有退休帳戶') + mo('×') + msupExpr(mo('(') + mn('1') + mo('+') + mt('退休報酬率') + mo(')'), mn('30')) + mo('+') + mt('年度退休投入') + mo('×') + mfrac(msupExpr(mo('(') + mn('1') + mo('+') + mt('退休報酬率') + mo(')'), mn('30')) + mo('-') + mn('1'), mt('退休報酬率'))),
+    mathFormula(mn(fmt(existingRetirement)) + mo('×') + msup(onePlusRate(rRetireLabel), 30) + mo('+') + mn(fmt(annualRetireContribution)) + mo('×') + mfrac(msup(onePlusRate(rRetireLabel), 30) + mo('-') + mn('1'), percentMath(rRetireLabel))),
+    `約 ${fmt(retireAt30.total)}`
+  ));
   const rJudge = retireJudge(retireSurplus);
   row(retireTable, retireSurplus >= 0 ? '退休金超過目標' : '退休金不足目標',
-    `30年退休金 - 退休目標 = ${fmt(retireAt30.total)} - ${fmt(retirementTarget)} = ${retireSurplus >= 0 ? '約 +' : '約 '}${fmt(retireSurplus)}　`
-    + `<span class="${rJudge.cls}">${rJudge.text}</span>`);
+    calcBlock(
+      mathFormula(mt('30 年退休金') + mo('-') + mt('退休目標')),
+      mathFormula(mn(fmt(retireAt30.total)) + mo('-') + mn(fmt(retirementTarget))),
+      `${retireSurplus >= 0 ? '約 +' : '約 '}${fmt(retireSurplus)}`
+    )
+    + `<span class="${rJudge.cls}">${rJudge.text}</span>`
+  );
 
   // 五、小結
   const sumTable = document.getElementById('summaryTable');
@@ -468,9 +604,10 @@ function calculate() {
     fmt(fvHome),
     fmt(loanAmount),
     fmt(monthlyMortgage),
-    (monthlyCashflow >= 0 ? '+' : '') + fmt(monthlyCashflow),
+    (beforeCashflow > 0 ? '+' : '') + fmt(beforeCashflow),
+    (monthlyCashflow > 0 ? '+' : '') + fmt(monthlyCashflow),
     fmt(retireAt30.total),
-    (retireSurplus >= 0 ? '+' : '') + fmt(retireSurplus)
+    (retireSurplus > 0 ? '+' : '') + fmt(retireSurplus)
   ].forEach(v => {
     const td = document.createElement('td');
     td.textContent = v;
@@ -479,12 +616,11 @@ function calculate() {
   sumTable.appendChild(tr);
 
   document.getElementById('judgeText').innerHTML =
-    `<span class="${cfJudge.cls}">買房現金流：${cfJudge.text}</span>　｜　<span class="${rJudge.cls}">退休：${rJudge.text}</span>`;
+    `<span class="${beforeCfJudge.cls}">買房前：${beforeCfJudge.text}</span>　｜　<span class="${cfJudge.cls}">買房後：${cfJudge.text}</span>　｜　<span class="${rJudge.cls}">退休：${rJudge.text}</span>`;
 }
-
 function loadPreset() {
   const values = {
-    monthlyIncome: 70000, otherLiving: 26000, maintenance: 5000,
+    monthlyIncome: 70000, rent: 16000, otherLiving: 26000, maintenance: 5000,
     premium: 3000, retireMonthly: 8000, existingHomeFund: 600000,
     monthlyHomeSaving: 17000, yearEndHomeSaving: 100000, price: 10000000,
     extraCost: 800000, years: 3, existingRetirement: 0, retireSpending: 42000,

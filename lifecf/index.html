@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>買房與退休現金流整合計算機｜人生現金流地圖</title>
+<style>
+  body {
+    margin: 0 auto;
+    max-width: 1160px;
+    padding: 48px 28px 80px;
+    color: #1f2933;
+    background: #fbfbf8;
+    font-family: "Times New Roman", "DFKai-SB", "BiauKai", "標楷體", serif;
+    font-size: 17px;
+    line-height: 1.75;
+  }
+
+  h1, h2, h3 {
+    line-height: 1.3;
+    color: #14213d;
+  }
+
+  h1 {
+    margin-top: 0;
+    padding-bottom: 16px;
+    border-bottom: 3px solid #2f6f73;
+    font-size: 1.9rem;
+  }
+
+  h2 {
+    margin-top: 42px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #d5ded8;
+    font-size: 1.4rem;
+  }
+
+  h3 {
+    margin-top: 24px;
+    font-size: 1.1rem;
+  }
+
+  table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    margin: 16px 0 26px;
+    background: #ffffff;
+  }
+
+  th, td {
+    border: 1px solid #d7ddd9;
+    padding: 9px 12px;
+    vertical-align: top;
+    overflow-wrap: anywhere;
+  }
+
+  th {
+    background: #e7f0ed;
+    color: #153b3f;
+    font-weight: 700;
+    text-align: left;
+  }
+
+  blockquote {
+    margin: 18px 0;
+    padding: 14px 18px;
+    border: 1.5px solid #4f7cac;
+    border-radius: 6px;
+    background: #eef5ff;
+    color: #1f2933;
+  }
+
+  a { color: #1f6f8b; }
+
+  hr {
+    border: 0;
+    border-top: 1px solid #d5ded8;
+    margin: 32px 0;
+  }
+
+  .panel {
+    background: #ffffff;
+    border: 1px solid #d7ddd9;
+    border-radius: 8px;
+    padding: 18px 22px;
+    margin-bottom: 22px;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 28px;
+  }
+
+  @media (max-width: 720px) {
+    body { padding: 24px 14px 56px; font-size: 16px; }
+    .grid { grid-template-columns: 1fr; }
+    table { display: block; overflow-x: auto; }
+  }
+
+  .field {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 6px 0;
+    border-bottom: 1px dashed #e2e8e4;
+  }
+
+  .field label {
+    flex: 1;
+    color: #14213d;
+  }
+
+  .field input {
+    width: 170px;
+    padding: 6px 8px;
+    border: 1px solid #c3ccc7;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 1rem;
+    text-align: right;
+  }
+
+  /* 純鍵入數字：移除瀏覽器原生的增減箭頭按鈕 */
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+
+  .hint {
+    color: #5b6b66;
+    font-size: 0.88rem;
+    margin: 2px 0 14px;
+  }
+
+  .frac {
+    display: inline-block;
+    vertical-align: middle;
+    text-align: center;
+    margin: 0 4px;
+  }
+
+  .frac .num {
+    display: block;
+    padding: 0 4px 3px;
+    border-bottom: 1.5px solid #1f2933;
+  }
+
+  .frac .den {
+    display: block;
+    padding: 3px 4px 0;
+  }
+
+  .btnrow { margin: 18px 0 6px; }
+
+  button {
+    font-family: inherit;
+    font-size: 1rem;
+    padding: 9px 18px;
+    border-radius: 6px;
+    border: 1.5px solid #2f6f73;
+    background: #2f6f73;
+    color: #ffffff;
+    cursor: pointer;
+    margin-right: 10px;
+  }
+
+  button.secondary {
+    background: #ffffff;
+    color: #2f6f73;
+  }
+
+  .judge-ok { color: #1d6b3a; font-weight: 700; }
+  .judge-warn { color: #a15c00; font-weight: 700; }
+  .judge-bad { color: #b3261e; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<h1>買房與退休現金流整合計算機</h1>
+
+<div class="panel">
+<p>這個工具會同時檢查兩件事：買房準備金與貸款是否足夠、買房後每月現金流是否吃得住，以及退休帳戶能不能持續累積到退休目標。請依序填入「收入與生活帳戶」「買房準備帳戶」「退休帳戶」三個區塊的數字，下方會自動算出買房準備金、頭期款、貸款、月付、買房後現金流、退休目標與退休累積，並給出簡單的判斷結果。</p>
+<p class="hint">所有欄位請直接輸入你自己的數字，下方計算結果會立即更新。</p>
+</div>
+
+<h2>一、基本設定（輸入你自己的數字）</h2>
+
+<div class="panel">
+<h3>收入與生活帳戶</h3>
+<div class="grid">
+  <div class="field"><label for="monthlyIncome">月實領收入（合計）</label><input id="monthlyIncome" type="number" value="70000" step="any"></div>
+  <div class="field"><label for="otherLiving">其他生活支出（不含房租／房貸）</label><input id="otherLiving" type="number" value="26000" step="any"></div>
+  <div class="field"><label for="maintenance">買房後管理修繕</label><input id="maintenance" type="number" value="5000" step="any"></div>
+  <div class="field"><label for="premium">基本保費</label><input id="premium" type="number" value="3000" step="any"></div>
+  <div class="field"><label for="retireMonthly">每月退休 ETF</label><input id="retireMonthly" type="number" value="8000" step="any"></div>
+</div>
+
+<h3>買房準備帳戶</h3>
+<div class="grid">
+  <div class="field"><label for="existingHomeFund">現有買房準備金</label><input id="existingHomeFund" type="number" value="600000" step="any"></div>
+  <div class="field"><label for="monthlyHomeSaving">每月可投入買房準備</label><input id="monthlyHomeSaving" type="number" value="17000" step="any"></div>
+  <div class="field"><label for="yearEndHomeSaving">年終可投入買房準備</label><input id="yearEndHomeSaving" type="number" value="100000" step="any"></div>
+  <div class="field"><label for="price">目標房價</label><input id="price" type="number" value="10000000" step="any"></div>
+  <div class="field"><label for="extraCost">額外成本與買房後緩衝</label><input id="extraCost" type="number" value="800000" step="any"></div>
+  <div class="field"><label for="years">買房年限（年）</label><input id="years" type="number" value="3" step="any"></div>
+  <div class="field"><label for="rHomePct">買房準備報酬率（%）</label><input id="rHomePct" type="number" value="2.5" step="any"></div>
+  <div class="field"><label for="mortgageRatePct">房貸年利率（%）</label><input id="mortgageRatePct" type="number" value="2.5" step="any"></div>
+</div>
+
+<h3>退休帳戶</h3>
+<div class="grid">
+  <div class="field"><label for="existingRetirement">現有退休帳戶</label><input id="existingRetirement" type="number" value="0" step="any"></div>
+  <div class="field"><label for="retireSpending">退休後每個月的花費估計</label><input id="retireSpending" type="number" value="42000" step="any"></div>
+  <div class="field"><label for="rRetirePct">退休報酬率（%）</label><input id="rRetirePct" type="number" value="10" step="any"></div>
+  <div class="field"><label for="targetReturnPct">退休目標報酬率（%）</label><input id="targetReturnPct" type="number" value="4" step="any"></div>
+</div>
+
+<div class="btnrow">
+  <button class="secondary" type="button" onclick="loadPreset()">重設為個案 1 預設值</button>
+</div>
+</div>
+
+<h2>二、買房準備：公式與計算過程</h2>
+<table id="homeTable">
+  <tr><th style="width:32%">項目</th><th>計算</th></tr>
+</table>
+
+<h2>三、買房後現金流檢查</h2>
+<table id="cashflowTable">
+  <tr><th style="width:32%">項目</th><th>計算</th></tr>
+</table>
+
+<h2>四、退休目標與退休帳戶累積</h2>
+<table id="retireTable">
+  <tr><th style="width:32%">項目</th><th>計算</th></tr>
+</table>
+
+<h2>五、小結</h2>
+<table id="summaryTable">
+  <tr><th>買房年限</th><th>準備金</th><th>貸款</th><th>月付</th><th>月流量</th><th>30年退休金</th><th>退休差額</th></tr>
+</table>
+<p id="judgeText"></p>
+
+<hr>
+<p class="hint">本工具僅供教學試算，所有數字皆為估算，不代表未來實際報酬或利率，也不構成投資或購屋建議。公式與四捨五入方式對應 <code>W04_個案解說.md</code> 三、十個個案的共同算法。</p>
+
+<script>
+function num(id) { return parseFloat(document.getElementById(id).value) || 0; }
+
+function round(x) {
+  const abs = Math.abs(x);
+  let unit;
+  if (abs >= 100000) unit = 1000;
+  else if (abs >= 1000) unit = 100;
+  else unit = 1;
+  return Math.round(x / unit) * unit;
+}
+
+function fmt(x) {
+  return round(x).toLocaleString('en-US');
+}
+
+function fvAnnuity(present, rate, n, annualContribution) {
+  const growth = Math.pow(1 + rate, n);
+  const principalFV = present * growth;
+  const contribFV = rate === 0 ? annualContribution * n : annualContribution * (growth - 1) / rate;
+  return { principalFV, contribFV, total: principalFV + contribFV };
+}
+
+function pctLabel(p) {
+  return (Math.round(p * 100) / 100) + '%';
+}
+
+function pctLabelPrecise(p, decimals) {
+  const f = Math.pow(10, decimals);
+  return (Math.round(p * f) / f) + '%';
+}
+
+const MORTGAGE_TERM_MONTHS = 360;
+
+function mortgageMonthlyPayment(loanAmount, annualRate) {
+  const monthlyRate = annualRate / 12;
+  if (monthlyRate === 0) return loanAmount / MORTGAGE_TERM_MONTHS;
+  const growth = Math.pow(1 + monthlyRate, MORTGAGE_TERM_MONTHS);
+  return loanAmount * monthlyRate * growth / (growth - 1);
+}
+
+function cashflowJudge(cf) {
+  if (cf < 0) return { text: '現金流為負，買房年限、房價或支出需要調整', cls: 'judge-bad' };
+  if (cf < 5000) return { text: '現金流勉強為正，安全邊際薄，建議保留更多緩衝', cls: 'judge-warn' };
+  return { text: '現金流為正且有餘裕，買房後仍可維持退休 ETF', cls: 'judge-ok' };
+}
+
+function retireJudge(diff) {
+  return diff >= 0
+    ? { text: '滿足退休目標', cls: 'judge-ok' }
+    : { text: '不滿足退休目標，需提高退休投入、延長投入時間或調整退休目標報酬率假設', cls: 'judge-bad' };
+}
+
+function row(table, label, calc) {
+  const tr = document.createElement('tr');
+  const td1 = document.createElement('td');
+  td1.textContent = label;
+  const td2 = document.createElement('td');
+  td2.innerHTML = calc;
+  tr.appendChild(td1);
+  tr.appendChild(td2);
+  table.appendChild(tr);
+}
+
+function clearRows(table) {
+  while (table.rows.length > 1) table.deleteRow(1);
+}
+
+function calculate() {
+  const monthlyIncome = num('monthlyIncome');
+  const otherLiving = num('otherLiving');
+  const maintenance = num('maintenance');
+  const premium = num('premium');
+  const retireMonthly = num('retireMonthly');
+  const existingHomeFund = num('existingHomeFund');
+  const monthlyHomeSaving = num('monthlyHomeSaving');
+  const yearEndHomeSaving = num('yearEndHomeSaving');
+  const price = num('price');
+  const extraCost = num('extraCost');
+  const years = num('years');
+  const rHome = num('rHomePct') / 100;
+  const mortgageRate = num('mortgageRatePct') / 100;
+  const existingRetirement = num('existingRetirement');
+  const retireSpending = num('retireSpending');
+  const rRetire = num('rRetirePct') / 100;
+  const targetReturnRate = num('targetReturnPct') / 100;
+
+  const annualHomeContribution = monthlyHomeSaving * 12 + yearEndHomeSaving;
+  const idealDownPayment = price * 0.2;
+  const buyTarget = idealDownPayment + extraCost;
+
+  const homeFV = fvAnnuity(existingHomeFund, rHome, years, annualHomeContribution);
+  const fvHome = homeFV.total;
+
+  const homeGap = buyTarget - fvHome;
+  const usableDownPayment = fvHome - extraCost;
+  const downShortfall = idealDownPayment - usableDownPayment;
+  const loanAmount = Math.max(price - usableDownPayment, 0);
+  const monthlyMortgage = mortgageMonthlyPayment(loanAmount, mortgageRate);
+
+  const monthlyCashflow = monthlyIncome - monthlyMortgage - maintenance - otherLiving - premium - retireMonthly;
+
+  const retirementTarget = (retireSpending * 12) / targetReturnRate;
+  const annualRetireContribution = retireMonthly * 12;
+
+  const retireAtBuyYear = fvAnnuity(existingRetirement, rRetire, years, annualRetireContribution);
+  const retireAt30 = fvAnnuity(existingRetirement, rRetire, 30, annualRetireContribution);
+  const retireSurplus = retireAt30.total - retirementTarget;
+
+  // 二、買房準備
+  const rHomeLabel = pctLabel(num('rHomePct'));
+  const homeTable = document.getElementById('homeTable');
+  clearRows(homeTable);
+  row(homeTable, '年度買房投入',
+    `${fmt(monthlyHomeSaving)} x 12 + ${fmt(yearEndHomeSaving)} = ${fmt(annualHomeContribution)}`);
+  row(homeTable, `現有 ${fmt(existingHomeFund)} 投資 ${years} 年`,
+    `${fmt(existingHomeFund)} x (1+${rHomeLabel})^${years} = 約 ${fmt(homeFV.principalFV)}`);
+  row(homeTable, `每年投入 ${fmt(annualHomeContribution)}，連續 ${years} 年`,
+    `${fmt(annualHomeContribution)} x [(1+${rHomeLabel})^${years}-1]/${rHomeLabel} = 約 ${fmt(homeFV.contribFV)}`);
+  row(homeTable, `${years} 年後買房準備金`,
+    `${fmt(homeFV.principalFV)} + ${fmt(homeFV.contribFV)} = 約 ${fmt(fvHome)}`);
+  row(homeTable, '買房準備目標',
+    `理想頭期款 = ${fmt(price)} x 20% = ${fmt(idealDownPayment)}；買房準備目標 = 理想頭期款 + 額外成本與緩衝 = ${fmt(idealDownPayment)} + ${fmt(extraCost)} = ${fmt(buyTarget)}`);
+  row(homeTable, homeGap >= 0 ? '買房準備金缺口' : '買房準備金超過目標',
+    `買房準備目標 - 買房準備金 = ${fmt(buyTarget)} - ${fmt(fvHome)} = ${fmt(Math.abs(homeGap))}`);
+  row(homeTable, '可用頭期款',
+    `買房準備金 - 額外成本與緩衝 = ${fmt(fvHome)} - ${fmt(extraCost)} = ${fmt(usableDownPayment)}`);
+  row(homeTable, downShortfall >= 0 ? '頭期款不足額' : '頭期款超過額',
+    `理想頭期款 - 可用頭期款 = ${fmt(idealDownPayment)} - ${fmt(usableDownPayment)} = ${fmt(Math.abs(downShortfall))}`);
+  row(homeTable, '貸款金額',
+    `房價 - 可用頭期款 = ${fmt(price)} - ${fmt(usableDownPayment)} = ${fmt(loanAmount)}`);
+  const mortgageAnnualLabel = pctLabel(num('mortgageRatePct'));
+  const mortgageMonthlyLabel = pctLabelPrecise(num('mortgageRatePct') / 12, 4);
+  const mortgageCoeff = loanAmount === 0 ? 0 : monthlyMortgage / loanAmount;
+  row(homeTable, '房貸月付',
+    `房貸年利率 ${mortgageAnnualLabel} → 月利率 = ${mortgageAnnualLabel} / 12 ≈ ${mortgageMonthlyLabel}；`
+    + `30 年期月付係數 = 月利率 x (1+月利率)^360 / [(1+月利率)^360-1] ≈ ${mortgageCoeff.toFixed(6)}；`
+    + `${fmt(loanAmount)} x ${mortgageCoeff.toFixed(6)} = 約 ${fmt(monthlyMortgage)}`);
+
+  // 三、現金流
+  const cfTable = document.getElementById('cashflowTable');
+  clearRows(cfTable);
+  const cfJudge = cashflowJudge(monthlyCashflow);
+  row(cfTable, '買房後月現金流',
+    `月收入 - 房貸月付 - 管理修繕 - 其他生活 - 保費 - 退休 ETF = `
+    + `${fmt(monthlyIncome)} - ${fmt(monthlyMortgage)} - ${fmt(maintenance)} - ${fmt(otherLiving)} - ${fmt(premium)} - ${fmt(retireMonthly)} = `
+    + `<strong>${fmt(monthlyCashflow)}</strong>`);
+  row(cfTable, '判斷', `<span class="${cfJudge.cls}">${cfJudge.text}</span>`);
+
+  // 四、退休
+  const rRetireLabel = pctLabel(num('rRetirePct'));
+  const targetReturnLabel = pctLabel(num('targetReturnPct'));
+  const retireTable = document.getElementById('retireTable');
+  clearRows(retireTable);
+  const retireTargetFrac =
+    `<span class="frac"><span class="num">退休後每個月的花費估計 x 12</span><span class="den">退休目標報酬率</span></span>`
+    + ` = `
+    + `<span class="frac"><span class="num">${fmt(retireSpending)} x 12</span><span class="den">${targetReturnLabel}</span></span>`
+    + ` ≈ ${fmt(retirementTarget)}`;
+  row(retireTable, '退休目標', retireTargetFrac);
+  row(retireTable, `買房當年（第 ${years} 年）退休累積`,
+    `計算：${fmt(existingRetirement)} x (1+${rRetireLabel})^${years} + ${fmt(annualRetireContribution)} x [(1+${rRetireLabel})^${years}-1]/${rRetireLabel} ≈ ${fmt(retireAtBuyYear.total)}`);
+  row(retireTable, '30 年後退休累積',
+    `計算：${fmt(existingRetirement)} x (1+${rRetireLabel})^30 + ${fmt(annualRetireContribution)} x [(1+${rRetireLabel})^30-1]/${rRetireLabel} ≈ ${fmt(retireAt30.total)}`);
+  const rJudge = retireJudge(retireSurplus);
+  row(retireTable, retireSurplus >= 0 ? '退休金超過目標' : '退休金不足目標',
+    `30年退休金 - 退休目標 = ${fmt(retireAt30.total)} - ${fmt(retirementTarget)} = ${retireSurplus >= 0 ? '約 +' : '約 '}${fmt(retireSurplus)}　`
+    + `<span class="${rJudge.cls}">${rJudge.text}</span>`);
+
+  // 五、小結
+  const sumTable = document.getElementById('summaryTable');
+  clearRows(sumTable);
+  const tr = document.createElement('tr');
+  [
+    `${years} 年`,
+    fmt(fvHome),
+    fmt(loanAmount),
+    fmt(monthlyMortgage),
+    (monthlyCashflow >= 0 ? '+' : '') + fmt(monthlyCashflow),
+    fmt(retireAt30.total),
+    (retireSurplus >= 0 ? '+' : '') + fmt(retireSurplus)
+  ].forEach(v => {
+    const td = document.createElement('td');
+    td.textContent = v;
+    tr.appendChild(td);
+  });
+  sumTable.appendChild(tr);
+
+  document.getElementById('judgeText').innerHTML =
+    `<span class="${cfJudge.cls}">買房現金流：${cfJudge.text}</span>　｜　<span class="${rJudge.cls}">退休：${rJudge.text}</span>`;
+}
+
+function loadPreset() {
+  const values = {
+    monthlyIncome: 70000, otherLiving: 26000, maintenance: 5000,
+    premium: 3000, retireMonthly: 8000, existingHomeFund: 600000,
+    monthlyHomeSaving: 17000, yearEndHomeSaving: 100000, price: 10000000,
+    extraCost: 800000, years: 3, existingRetirement: 0, retireSpending: 42000,
+    rHomePct: 2.5, mortgageRatePct: 2.5, rRetirePct: 10, targetReturnPct: 4
+  };
+  for (const id in values) document.getElementById(id).value = values[id];
+  calculate();
+}
+
+document.querySelectorAll('input').forEach(el => el.addEventListener('input', calculate));
+calculate();
+</script>
+</body>
+</html>

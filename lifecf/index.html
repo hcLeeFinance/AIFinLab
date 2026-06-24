@@ -142,7 +142,7 @@
 
   math.formula {
     font-family: "Times New Roman", "DFKai-SB", "BiauKai", "標楷體", serif;
-    font-size: 1.06em;
+    font-size: 0.96em;
   }
 
   .formula-line {
@@ -184,6 +184,13 @@
     grid-template-columns: 3.2em minmax(0, 1fr);
     gap: 10px;
     align-items: start;
+  }
+
+  .calc-line > span:last-child {
+    display: block;
+    min-width: 0;
+    overflow-x: auto;
+    padding-bottom: 2px;
   }
 
   .calc-label {
@@ -239,28 +246,28 @@
 <div class="grid">
   <div class="field"><label for="existingRetirement">現有退休帳戶</label><input id="existingRetirement" type="text" inputmode="decimal" data-comma value="0"></div>
   <div class="field"><label for="retireSpending">退休後每個月的花費估計</label><input id="retireSpending" type="text" inputmode="decimal" data-comma value="42,000"></div>
-  <div class="field"><label for="rRetirePct">退休報酬率（%）</label><input id="rRetirePct" type="number" value="10" step="any"></div>
-  <div class="field"><label for="targetReturnPct">退休目標報酬率（%）</label><input id="targetReturnPct" type="number" value="4" step="any"></div>
+  <div class="field"><label for="rRetirePct">退休前目標投資報酬率（%）</label><input id="rRetirePct" type="number" value="10" step="any"></div>
+  <div class="field"><label for="targetReturnPct">退休後目標投資報酬率（%）</label><input id="targetReturnPct" type="number" value="4" step="any"></div>
 </div>
 
 <div class="btnrow">
-  <button class="secondary" type="button" onclick="loadPreset()">重設為個案 1 預設值</button>
+  <button class="secondary" type="button" onclick="loadPreset()">重設為預設值</button>
 </div>
 </div>
 
 <h2>二、買房準備：公式與計算過程</h2>
 <table id="homeTable">
-  <tr><th style="width:32%">項目</th><th>計算</th></tr>
+  <tr><th style="width:22%">項目</th><th>計算</th></tr>
 </table>
 
 <h2>三、買房前後現金流檢查</h2>
 <table id="cashflowTable">
-  <tr><th style="width:32%">項目</th><th>計算</th></tr>
+  <tr><th style="width:22%">項目</th><th>計算</th></tr>
 </table>
 
 <h2>四、退休目標與退休帳戶累積</h2>
 <table id="retireTable">
-  <tr><th style="width:32%">項目</th><th>計算</th></tr>
+  <tr><th style="width:22%">項目</th><th>計算</th></tr>
 </table>
 
 <h2>五、小結</h2>
@@ -402,7 +409,7 @@ function beforeCashflowJudge(cf) {
 function retireJudge(diff) {
   return diff >= 0
     ? { text: '滿足退休目標', cls: 'judge-ok' }
-    : { text: '不滿足退休目標，需提高退休投入、延長投入時間或調整退休目標報酬率假設', cls: 'judge-bad' };
+    : { text: '不滿足退休目標，需提高退休投入、延長投入時間或調整退休後目標投資報酬率假設', cls: 'judge-bad' };
 }
 
 function row(table, label, calc) {
@@ -569,19 +576,19 @@ function calculate() {
   const retireTable = document.getElementById('retireTable');
   clearRows(retireTable);
   row(retireTable, '退休目標', calcBlock(
-    mathFormula(mfrac(mt('退休後每個月的花費估計') + mo('×') + mn('12'), mt('退休目標報酬率'))),
-    mathFormula(mfrac(mt('退休後每個月的花費估計') + mo('×') + mn('12'), mt('退休目標報酬率'))
+    mathFormula(mfrac(mt('退休後每個月的花費估計') + mo('×') + mn('12'), mt('退休後目標投資報酬率'))),
+    mathFormula(mfrac(mt('退休後每個月的花費估計') + mo('×') + mn('12'), mt('退休後目標投資報酬率'))
       + mo('=')
       + mfrac(mn(fmt(retireSpending)) + mo('×') + mn('12'), percentMath(targetReturnLabel))),
     `約 ${fmt(retirementTarget)}`
   ));
   row(retireTable, `買房當年（第 ${years} 年）退休累積`, calcBlock(
-    mathFormula(mt('現有退休帳戶') + mo('×') + msupExpr(mo('(') + mn('1') + mo('+') + mt('退休報酬率') + mo(')'), mt('買房年限')) + mo('+') + mt('年度退休投入') + mo('×') + mfrac(msupExpr(mo('(') + mn('1') + mo('+') + mt('退休報酬率') + mo(')'), mt('買房年限')) + mo('-') + mn('1'), mt('退休報酬率'))),
+    mathFormula(mt('現有退休帳戶') + mo('×') + msupExpr(mo('(') + mn('1') + mo('+') + mt('退休前目標投資報酬率') + mo(')'), mt('買房年限')) + mo('+') + mt('年度退休投入') + mo('×') + mfrac(msupExpr(mo('(') + mn('1') + mo('+') + mt('退休前目標投資報酬率') + mo(')'), mt('買房年限')) + mo('-') + mn('1'), mt('退休前目標投資報酬率'))),
     mathFormula(mn(fmt(existingRetirement)) + mo('×') + msup(onePlusRate(rRetireLabel), years) + mo('+') + mn(fmt(annualRetireContribution)) + mo('×') + mfrac(msup(onePlusRate(rRetireLabel), years) + mo('-') + mn('1'), percentMath(rRetireLabel))),
     `約 ${fmt(retireAtBuyYear.total)}`
   ));
   row(retireTable, '30 年後退休累積', calcBlock(
-    mathFormula(mt('現有退休帳戶') + mo('×') + msupExpr(mo('(') + mn('1') + mo('+') + mt('退休報酬率') + mo(')'), mn('30')) + mo('+') + mt('年度退休投入') + mo('×') + mfrac(msupExpr(mo('(') + mn('1') + mo('+') + mt('退休報酬率') + mo(')'), mn('30')) + mo('-') + mn('1'), mt('退休報酬率'))),
+    mathFormula(mt('現有退休帳戶') + mo('×') + msupExpr(mo('(') + mn('1') + mo('+') + mt('退休前目標投資報酬率') + mo(')'), mn('30')) + mo('+') + mt('年度退休投入') + mo('×') + mfrac(msupExpr(mo('(') + mn('1') + mo('+') + mt('退休前目標投資報酬率') + mo(')'), mn('30')) + mo('-') + mn('1'), mt('退休前目標投資報酬率'))),
     mathFormula(mn(fmt(existingRetirement)) + mo('×') + msup(onePlusRate(rRetireLabel), 30) + mo('+') + mn(fmt(annualRetireContribution)) + mo('×') + mfrac(msup(onePlusRate(rRetireLabel), 30) + mo('-') + mn('1'), percentMath(rRetireLabel))),
     `約 ${fmt(retireAt30.total)}`
   ));

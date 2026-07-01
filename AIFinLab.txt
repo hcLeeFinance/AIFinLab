@@ -1,6 +1,6 @@
 AIFinLab/ (專案根目錄)
 │
-├── build_site.R           # [核心腳本] 自動化編譯器
+├── build_site.R           # [核心腳本] 自動化編譯器：source("build_site.R")
 ├── index.html             # [入口網站] 戰情室首頁
 ├── shared/                # [共用資源] CSS, JS, utils.R
 │
@@ -8,8 +8,43 @@ AIFinLab/ (專案根目錄)
 ├── mortgage/              # [部署檔] 舊功能 (靜態)
 ├── dca/                   # [部署檔] DCA vs 單筆策略比較
 ├── lifecf/                # [部署檔] 買房與退休現金流整合計算機 (靜態)
-├── beta/                  # [部署檔] 由 source_beta 編譯生成
+├── beta/                  # [部署檔] 由 source_beta 編譯生成 (勿手動修改)
 ├── opt/                   # [部署檔] options
 │
-├── source_beta/           # [原始碼] Beta 功能開發區
+├── source_beta/           # [原始碼] Beta 功能開發區 → 改這裡，再跑 build_site.R
 └── source_opt/            # [原始碼] OptEF 功能開發區
+
+================================================================================
+編譯環境
+================================================================================
+Rscript 路徑：C:\R\R-4.6.0\bin\Rscript.exe
+shinylive 版本：0.5.0（2026-07-01 升級）
+
+編譯指令：
+  "C:\R\R-4.6.0\bin\Rscript.exe" build_site.R
+
+================================================================================
+beta/ 目錄說明（shinylive 0.5.0）
+================================================================================
+beta/ 是 shinylive::export() 自動生成的產物，不應手動修改。
+
+關鍵檔案：
+  beta/app.json                      ← source_beta/ 的 R 程式碼打包
+  beta/shinylive/webr/R.js           ← WebR R 執行引擎啟動器（舊版為 R.bin.js）
+  beta/shinylive/webr/R.wasm         ← R 編譯成 WebAssembly（舊版為 R.bin.wasm）
+  beta/shinylive/webr/library.data.gz ← R 套件（zoo、quantmod 等）整合包
+
+注意：R.js.bak 是 shinylive 自動產生的備份（比 R.js 多 19 bytes），正常現象。
+
+================================================================================
+開發流程
+================================================================================
+1. 編輯 source_beta/app.R
+2. 執行：Rscript build_site.R
+3. git add beta/ && git commit && git push
+
+================================================================================
+GitHub
+================================================================================
+Remote: https://github.com/hcLeeFinance/AIFinLab.git
+Branch: main

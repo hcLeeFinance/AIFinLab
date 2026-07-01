@@ -248,6 +248,7 @@
   <div class="field"><label for="retireSpending">退休後每個月的花費估計</label><input id="retireSpending" type="text" inputmode="decimal" data-comma value="42,000"></div>
   <div class="field"><label for="rRetirePct">退休前目標投資報酬率（%）</label><input id="rRetirePct" type="number" value="10" step="any"></div>
   <div class="field"><label for="targetReturnPct">退休後目標投資報酬率（%）</label><input id="targetReturnPct" type="number" value="4" step="any"></div>
+  <div class="field"><label for="yearsToRetire">預計多久退休（年）</label><input id="yearsToRetire" type="number" value="30" step="any"></div>
 </div>
 
 <div class="btnrow">
@@ -272,7 +273,7 @@
 
 <h2>五、小結</h2>
 <table id="summaryTable">
-  <tr><th>買房年限</th><th>準備金</th><th>貸款</th><th>月付</th><th>買前流量</th><th>買後流量</th><th>30年退休金</th><th>退休差額</th></tr>
+  <tr><th>買房年限</th><th>準備金</th><th>貸款</th><th>月付</th><th>買前流量</th><th>買後流量</th><th id="retireYearsHeader">30年退休金</th><th>退休差額</th></tr>
 </table>
 <p id="judgeText"></p>
 
@@ -446,6 +447,7 @@ function calculate() {
   const retireSpending = num('retireSpending');
   const rRetire = num('rRetirePct') / 100;
   const targetReturnRate = num('targetReturnPct') / 100;
+  const yearsToRetire = num('yearsToRetire');
 
   const annualHomeContribution = monthlyHomeSaving * 12 + yearEndHomeSaving;
   const idealDownPayment = price * 0.2;
@@ -467,8 +469,8 @@ function calculate() {
   const annualRetireContribution = retireMonthly * 12;
 
   const retireAtBuyYear = fvAnnuity(existingRetirement, rRetire, years, annualRetireContribution);
-  const retireAt30 = fvAnnuity(existingRetirement, rRetire, 30, annualRetireContribution);
-  const retireSurplus = retireAt30.total - retirementTarget;
+  const retireAtTarget = fvAnnuity(existingRetirement, rRetire, yearsToRetire, annualRetireContribution);
+  const retireSurplus = retireAtTarget.total - retirementTarget;
 
   const rHomeLabel = pctLabel(num('rHomePct'));
   const rRetireLabel = pctLabel(num('rRetirePct'));
@@ -587,22 +589,23 @@ function calculate() {
     mathFormula(mn(fmt(existingRetirement)) + mo('×') + msup(onePlusRate(rRetireLabel), years) + mo('+') + mn(fmt(annualRetireContribution)) + mo('×') + mfrac(msup(onePlusRate(rRetireLabel), years) + mo('-') + mn('1'), percentMath(rRetireLabel))),
     `約 ${fmt(retireAtBuyYear.total)}`
   ));
-  row(retireTable, '30 年後退休累積', calcBlock(
-    mathFormula(mt('現有退休帳戶') + mo('×') + msupExpr(mo('(') + mn('1') + mo('+') + mt('退休前目標投資報酬率') + mo(')'), mn('30')) + mo('+') + mt('年度退休投入') + mo('×') + mfrac(msupExpr(mo('(') + mn('1') + mo('+') + mt('退休前目標投資報酬率') + mo(')'), mn('30')) + mo('-') + mn('1'), mt('退休前目標投資報酬率'))),
-    mathFormula(mn(fmt(existingRetirement)) + mo('×') + msup(onePlusRate(rRetireLabel), 30) + mo('+') + mn(fmt(annualRetireContribution)) + mo('×') + mfrac(msup(onePlusRate(rRetireLabel), 30) + mo('-') + mn('1'), percentMath(rRetireLabel))),
-    `約 ${fmt(retireAt30.total)}`
+  row(retireTable, `${yearsToRetire} 年後退休累積`, calcBlock(
+    mathFormula(mt('現有退休帳戶') + mo('×') + msupExpr(mo('(') + mn('1') + mo('+') + mt('退休前目標投資報酬率') + mo(')'), mt('預計多久退休')) + mo('+') + mt('年度退休投入') + mo('×') + mfrac(msupExpr(mo('(') + mn('1') + mo('+') + mt('退休前目標投資報酬率') + mo(')'), mt('預計多久退休')) + mo('-') + mn('1'), mt('退休前目標投資報酬率'))),
+    mathFormula(mn(fmt(existingRetirement)) + mo('×') + msup(onePlusRate(rRetireLabel), yearsToRetire) + mo('+') + mn(fmt(annualRetireContribution)) + mo('×') + mfrac(msup(onePlusRate(rRetireLabel), yearsToRetire) + mo('-') + mn('1'), percentMath(rRetireLabel))),
+    `約 ${fmt(retireAtTarget.total)}`
   ));
   const rJudge = retireJudge(retireSurplus);
   row(retireTable, retireSurplus >= 0 ? '退休金超過目標' : '退休金不足目標',
     calcBlock(
-      mathFormula(mt('30 年退休金') + mo('-') + mt('退休目標')),
-      mathFormula(mn(fmt(retireAt30.total)) + mo('-') + mn(fmt(retirementTarget))),
+      mathFormula(mt(`${yearsToRetire} 年退休金`) + mo('-') + mt('退休目標')),
+      mathFormula(mn(fmt(retireAtTarget.total)) + mo('-') + mn(fmt(retirementTarget))),
       `${retireSurplus >= 0 ? '約 +' : '約 '}${fmt(retireSurplus)}`
     )
     + `<span class="${rJudge.cls}">${rJudge.text}</span>`
   );
 
   // 五、小結
+  document.getElementById('retireYearsHeader').textContent = `${yearsToRetire}年退休金`;
   const sumTable = document.getElementById('summaryTable');
   clearRows(sumTable);
   const tr = document.createElement('tr');
@@ -613,7 +616,7 @@ function calculate() {
     fmt(monthlyMortgage),
     (beforeCashflow > 0 ? '+' : '') + fmt(beforeCashflow),
     (monthlyCashflow > 0 ? '+' : '') + fmt(monthlyCashflow),
-    fmt(retireAt30.total),
+    fmt(retireAtTarget.total),
     (retireSurplus > 0 ? '+' : '') + fmt(retireSurplus)
   ].forEach(v => {
     const td = document.createElement('td');
@@ -631,7 +634,7 @@ function loadPreset() {
     premium: 3000, retireMonthly: 8000, existingHomeFund: 600000,
     monthlyHomeSaving: 17000, yearEndHomeSaving: 100000, price: 10000000,
     extraCost: 800000, years: 3, existingRetirement: 0, retireSpending: 42000,
-    rHomePct: 2.5, mortgageRatePct: 2.5, rRetirePct: 10, targetReturnPct: 4
+    rHomePct: 2.5, mortgageRatePct: 2.5, rRetirePct: 10, targetReturnPct: 4, yearsToRetire: 30
   };
   for (const id in values) {
     const input = document.getElementById(id);

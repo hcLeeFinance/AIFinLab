@@ -29,7 +29,7 @@
         .top-header {
             background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
             border-bottom: 1px solid var(--card-border);
-            padding: 18px 16px;
+            padding: 14px 16px;
             position: sticky;
             top: 0;
             z-index: 100;
@@ -42,7 +42,7 @@
             align-items: center;
         }
         .brand-title {
-            font-size: 1.25rem;
+            font-size: 1.15rem;
             font-weight: 700;
             background: linear-gradient(to right, #38bdf8, #818cf8);
             -webkit-background-clip: text;
@@ -52,10 +52,26 @@
             align-items: center;
             gap: 8px;
         }
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .history-select {
+            background: rgba(15, 23, 42, 0.9);
+            color: var(--accent-blue);
+            border: 1px solid rgba(56, 189, 248, 0.4);
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            outline: none;
+            cursor: pointer;
+        }
         .report-date-badge {
             background: rgba(56, 189, 248, 0.15);
             color: var(--accent-blue);
-            padding: 4px 14px;
+            padding: 4px 12px;
             border-radius: 20px;
             font-size: 0.85rem;
             font-weight: 600;
@@ -213,8 +229,13 @@
 <body>
     <header class="top-header">
         <div class="header-content">
-            <a href="../index.html" class="brand-title"><span>📈</span> FinLab 每日晨報</a>
-            <div class="report-date-badge">2026-07-24</div>
+            <a href="index.html" class="brand-title"><span>📈</span> FinLab 每日晨報戰情室</a>
+            <div class="header-right">
+                <select id="quickHistorySelect" class="history-select" onchange="if(this.value) window.location.href=this.value;">
+                    <option value="">📅 切換歷史日報...</option>
+                </select>
+                <div class="report-date-badge">2026-07-24</div>
+            </div>
         </div>
     </header>
     <div class="container">
@@ -260,14 +281,14 @@
                     <div class="index-price down">51,815.71</div>
                     <div class="chart-container"><svg viewBox="0 0 320 90" width="100%" height="90" style="overflow:visible; font-family:sans-serif;">
       <defs>
-        <linearGradient id="grad_dji_8211" x1="0" y1="0" x2="0" y2="1">
+        <linearGradient id="grad_dji_8398" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stop-color="#ef4444" stop-opacity="0.35"/>
           <stop offset="100%" stop-color="#ef4444" stop-opacity="0.0"/>
         </linearGradient>
       </defs>
       <rect width="320" height="90" fill="rgba(15,23,42,0.5)" rx="8" stroke="rgba(255,255,255,0.05)"/>
       <line x1="10" y1="73.4" x2="310" y2="73.4" stroke="#64748b" stroke-dasharray="3,3" stroke-width="1"/>
-      <path d="M 10.0,71.5 L 35.0,50.4 L 60.0,53.0 L 85.0,28.2 L 110.0,44.6 L 135.0,41.6 L 160.0,47.5 L 185.0,16.6 L 210.0,18.6 L 235.0,36.3 L 260.0,28.6 L 285.0,43.2 L 310.0,39.5 L 310.0,85 L 10,85 Z" fill="url(#grad_dji_8211)"/>
+      <path d="M 10.0,71.5 L 35.0,50.4 L 60.0,53.0 L 85.0,28.2 L 110.0,44.6 L 135.0,41.6 L 160.0,47.5 L 185.0,16.6 L 210.0,18.6 L 235.0,36.3 L 260.0,28.6 L 285.0,43.2 L 310.0,39.5 L 310.0,85 L 10,85 Z" fill="url(#grad_dji_8398)"/>
       <path d="M 10.0,71.5 L 35.0,50.4 L 60.0,53.0 L 85.0,28.2 L 110.0,44.6 L 135.0,41.6 L 160.0,47.5 L 185.0,16.6 L 210.0,18.6 L 235.0,36.3 L 260.0,28.6 L 285.0,43.2 L 310.0,39.5" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       <circle cx="310.0" cy="39.5" r="4" fill="#ef4444" stroke="#ffffff" stroke-width="1.5"/>
       <text x="308" y="69.4" fill="#94a3b8" font-size="9" text-anchor="end">平盤 51,711.7</text>
@@ -285,14 +306,14 @@
                     <div class="index-price down">7,411.02</div>
                     <div class="chart-container"><svg viewBox="0 0 320 90" width="100%" height="90" style="overflow:visible; font-family:sans-serif;">
       <defs>
-        <linearGradient id="grad_spx_8211" x1="0" y1="0" x2="0" y2="1">
+        <linearGradient id="grad_spx_8398" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stop-color="#ef4444" stop-opacity="0.35"/>
           <stop offset="100%" stop-color="#ef4444" stop-opacity="0.0"/>
         </linearGradient>
       </defs>
       <rect width="320" height="90" fill="rgba(15,23,42,0.5)" rx="8" stroke="rgba(255,255,255,0.05)"/>
       <line x1="10" y1="51.1" x2="310" y2="51.1" stroke="#64748b" stroke-dasharray="3,3" stroke-width="1"/>
-      <path d="M 10.0,26.1 L 33.1,35.0 L 56.2,42.1 L 79.2,16.6 L 102.3,69.0 L 125.4,73.4 L 148.5,69.8 L 171.5,27.8 L 194.6,23.6 L 217.7,50.8 L 240.8,25.3 L 263.8,31.6 L 286.9,39.4 L 310.0,44.2 L 310.0,85 L 10,85 Z" fill="url(#grad_spx_8211)"/>
+      <path d="M 10.0,26.1 L 33.1,35.0 L 56.2,42.1 L 79.2,16.6 L 102.3,69.0 L 125.4,73.4 L 148.5,69.8 L 171.5,27.8 L 194.6,23.6 L 217.7,50.8 L 240.8,25.3 L 263.8,31.6 L 286.9,39.4 L 310.0,44.2 L 310.0,85 L 10,85 Z" fill="url(#grad_spx_8398)"/>
       <path d="M 10.0,26.1 L 33.1,35.0 L 56.2,42.1 L 79.2,16.6 L 102.3,69.0 L 125.4,73.4 L 148.5,69.8 L 171.5,27.8 L 194.6,23.6 L 217.7,50.8 L 240.8,25.3 L 263.8,31.6 L 286.9,39.4 L 310.0,44.2" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       <circle cx="310.0" cy="44.2" r="4" fill="#ef4444" stroke="#ffffff" stroke-width="1.5"/>
       <text x="308" y="47.1" fill="#94a3b8" font-size="9" text-anchor="end">平盤 7,408.3</text>
@@ -310,14 +331,14 @@
                     <div class="index-price down">24,974.14</div>
                     <div class="chart-container"><svg viewBox="0 0 320 90" width="100%" height="90" style="overflow:visible; font-family:sans-serif;">
       <defs>
-        <linearGradient id="grad_ixic_8211" x1="0" y1="0" x2="0" y2="1">
+        <linearGradient id="grad_ixic_8398" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stop-color="#10b981" stop-opacity="0.35"/>
           <stop offset="100%" stop-color="#10b981" stop-opacity="0.0"/>
         </linearGradient>
       </defs>
       <rect width="320" height="90" fill="rgba(15,23,42,0.5)" rx="8" stroke="rgba(255,255,255,0.05)"/>
       <line x1="10" y1="20.2" x2="310" y2="20.2" stroke="#64748b" stroke-dasharray="3,3" stroke-width="1"/>
-      <path d="M 10.0,16.6 L 33.1,33.2 L 56.2,43.1 L 79.2,31.1 L 102.3,70.0 L 125.4,71.5 L 148.5,69.4 L 171.5,48.8 L 194.6,49.8 L 217.7,71.5 L 240.8,56.7 L 263.8,57.0 L 286.9,73.4 L 310.0,72.6 L 310.0,85 L 10,85 Z" fill="url(#grad_ixic_8211)"/>
+      <path d="M 10.0,16.6 L 33.1,33.2 L 56.2,43.1 L 79.2,31.1 L 102.3,70.0 L 125.4,71.5 L 148.5,69.4 L 171.5,48.8 L 194.6,49.8 L 217.7,71.5 L 240.8,56.7 L 263.8,57.0 L 286.9,73.4 L 310.0,72.6 L 310.0,85 L 10,85 Z" fill="url(#grad_ixic_8398)"/>
       <path d="M 10.0,16.6 L 33.1,33.2 L 56.2,43.1 L 79.2,31.1 L 102.3,70.0 L 125.4,71.5 L 148.5,69.4 L 171.5,48.8 L 194.6,49.8 L 217.7,71.5 L 240.8,56.7 L 263.8,57.0 L 286.9,73.4 L 310.0,72.6" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       <circle cx="310.0" cy="72.6" r="4" fill="#10b981" stroke="#ffffff" stroke-width="1.5"/>
       <text x="308" y="16.2" fill="#94a3b8" font-size="9" text-anchor="end">平盤 25,137.7</text>
@@ -335,14 +356,14 @@
                     <div class="index-price down">11,916.93</div>
                     <div class="chart-container"><svg viewBox="0 0 320 90" width="100%" height="90" style="overflow:visible; font-family:sans-serif;">
       <defs>
-        <linearGradient id="grad_sox_8211" x1="0" y1="0" x2="0" y2="1">
+        <linearGradient id="grad_sox_8398" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stop-color="#10b981" stop-opacity="0.35"/>
           <stop offset="100%" stop-color="#10b981" stop-opacity="0.0"/>
         </linearGradient>
       </defs>
       <rect width="320" height="90" fill="rgba(15,23,42,0.5)" rx="8" stroke="rgba(255,255,255,0.05)"/>
       <line x1="10" y1="16.6" x2="310" y2="16.6" stroke="#64748b" stroke-dasharray="3,3" stroke-width="1"/>
-      <path d="M 10.0,29.3 L 40.0,44.0 L 70.0,43.8 L 100.0,48.1 L 130.0,68.5 L 160.0,69.3 L 190.0,70.1 L 220.0,60.2 L 250.0,59.7 L 280.0,71.6 L 310.0,73.4 L 310.0,85 L 10,85 Z" fill="url(#grad_sox_8211)"/>
+      <path d="M 10.0,29.3 L 40.0,44.0 L 70.0,43.8 L 100.0,48.1 L 130.0,68.5 L 160.0,69.3 L 190.0,70.1 L 220.0,60.2 L 250.0,59.7 L 280.0,71.6 L 310.0,73.4 L 310.0,85 L 10,85 Z" fill="url(#grad_sox_8398)"/>
       <path d="M 10.0,29.3 L 40.0,44.0 L 70.0,43.8 L 100.0,48.1 L 130.0,68.5 L 160.0,69.3 L 190.0,70.1 L 220.0,60.2 L 250.0,59.7 L 280.0,71.6 L 310.0,73.4" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       <circle cx="310.0" cy="73.4" r="4" fill="#10b981" stroke="#ffffff" stroke-width="1.5"/>
       <text x="308" y="12.6" fill="#94a3b8" font-size="9" text-anchor="end">平盤 12,343.8</text>
@@ -484,5 +505,25 @@
 
         <footer>FinLab Daily Automated Morning Report System © 2026</footer>
     </div>
+
+    <script>
+        // Fetch reports.json dynamically to populate quick date selector in header
+        window.addEventListener('DOMContentLoaded', () => {
+            fetch('reports.json?t=' + new Date().getTime())
+                .then(res => res.json())
+                .then(data => {
+                    const selector = document.getElementById('quickHistorySelect');
+                    if (!selector) return;
+                    data.forEach(item => {
+                        const opt = document.createElement('option');
+                        opt.value = item.filename;
+                        opt.textContent = `${item.date} ${item.date === '2026-07-24' ? '(本日)' : ''}`;
+                        if (item.date === '2026-07-24') opt.selected = true;
+                        selector.appendChild(opt);
+                    });
+                })
+                .catch(err => console.log('Could not load reports index:', err));
+        });
+    </script>
 </body>
 </html>

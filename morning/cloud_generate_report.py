@@ -206,7 +206,7 @@ def build_cloud_morning_report():
         .top-header {{
             background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
             border-bottom: 1px solid var(--card-border);
-            padding: 18px 16px;
+            padding: 14px 16px;
             position: sticky;
             top: 0;
             z-index: 100;
@@ -219,7 +219,7 @@ def build_cloud_morning_report():
             align-items: center;
         }}
         .brand-title {{
-            font-size: 1.25rem;
+            font-size: 1.15rem;
             font-weight: 700;
             background: linear-gradient(to right, #38bdf8, #818cf8);
             -webkit-background-clip: text;
@@ -229,10 +229,26 @@ def build_cloud_morning_report():
             align-items: center;
             gap: 8px;
         }}
+        .header-right {{
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }}
+        .history-select {{
+            background: rgba(15, 23, 42, 0.9);
+            color: var(--accent-blue);
+            border: 1px solid rgba(56, 189, 248, 0.4);
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            outline: none;
+            cursor: pointer;
+        }}
         .report-date-badge {{
             background: rgba(56, 189, 248, 0.15);
             color: var(--accent-blue);
-            padding: 4px 14px;
+            padding: 4px 12px;
             border-radius: 20px;
             font-size: 0.85rem;
             font-weight: 600;
@@ -390,8 +406,13 @@ def build_cloud_morning_report():
 <body>
     <header class="top-header">
         <div class="header-content">
-            <a href="../index.html" class="brand-title"><span>📈</span> FinLab 每日晨報</a>
-            <div class="report-date-badge">{today_str}</div>
+            <a href="index.html" class="brand-title"><span>📈</span> FinLab 每日晨報戰情室</a>
+            <div class="header-right">
+                <select id="quickHistorySelect" class="history-select" onchange="if(this.value) window.location.href=this.value;">
+                    <option value="">📅 切換歷史日報...</option>
+                </select>
+                <div class="report-date-badge">{today_str}</div>
+            </div>
         </div>
     </header>
     <div class="container">
@@ -609,6 +630,26 @@ def build_cloud_morning_report():
 
         <footer>FinLab Daily Automated Morning Report System © 2026</footer>
     </div>
+
+    <script>
+        // Fetch reports.json dynamically to populate quick date selector in header
+        window.addEventListener('DOMContentLoaded', () => {{
+            fetch('reports.json?t=' + new Date().getTime())
+                .then(res => res.json())
+                .then(data => {{
+                    const selector = document.getElementById('quickHistorySelect');
+                    if (!selector) return;
+                    data.forEach(item => {{
+                        const opt = document.createElement('option');
+                        opt.value = item.filename;
+                        opt.textContent = `${{item.date}} ${{item.date === '{today_str}' ? '(本日)' : ''}}`;
+                        if (item.date === '{today_str}') opt.selected = true;
+                        selector.appendChild(opt);
+                    }});
+                }})
+                .catch(err => console.log('Could not load reports index:', err));
+        }});
+    </script>
 </body>
 </html>"""
 

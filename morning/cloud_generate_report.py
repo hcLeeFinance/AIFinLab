@@ -250,8 +250,38 @@ def build_cloud_morning_report():
             padding: 24px 20px;
             margin-bottom: 24px;
         }}
-        .hero-title {{ font-size: 1.45rem; font-weight: 800; margin-bottom: 10px; color: #ffffff; }}
-        .hero-subtitle {{ font-size: 0.95rem; color: var(--text-muted); line-height: 1.6; }}
+        .hero-title {{ font-size: 1.45rem; font-weight: 800; margin-bottom: 16px; color: #ffffff; display: flex; align-items: center; gap: 8px; }}
+        
+        /* Hero Highlights Box */
+        .hero-highlights {{
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }}
+        .highlight-item {{
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px;
+            padding: 12px 14px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }}
+        @media (max-width: 640px) {{
+            .highlight-item {{ flex-direction: column; gap: 6px; }}
+        }}
+        .highlight-tag {{
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            white-space: nowrap;
+            display: inline-block;
+        }}
+        .tag-us {{ background: rgba(56, 189, 248, 0.2); color: var(--accent-blue); border: 1px solid rgba(56, 189, 248, 0.4); }}
+        .tag-global {{ background: rgba(192, 132, 252, 0.2); color: var(--accent-purple); border: 1px solid rgba(192, 132, 252, 0.4); }}
+        .tag-tw {{ background: rgba(251, 191, 36, 0.2); color: var(--accent-gold); border: 1px solid rgba(251, 191, 36, 0.4); }}
+        .highlight-text {{ font-size: 0.92rem; color: #e2e8f0; line-height: 1.6; }}
 
         /* Intraday Chart Grid */
         .chart-grid {{
@@ -365,15 +395,35 @@ def build_cloud_morning_report():
         </div>
     </header>
     <div class="container">
+        <!-- Hero Section with Summary Highlights -->
         <div class="hero-banner">
-            <h1 class="hero-title">全球市場觀盤與台股開盤焦點</h1>
-            <p class="hero-subtitle">全面彙整美洲、歐洲、亞太與東南亞主要指數動態，搭配美股四大指數日內走勢圖、匯率/債市/大宗商品關鍵數據，提供深度國際宏觀與台股開盤作戰策略。</p>
+            <h1 class="hero-title"><span>🎯</span> 全球市場觀盤與台股開盤焦點速覽</h1>
+            <div class="hero-highlights">
+                <div class="highlight-item">
+                    <span class="highlight-tag tag-us">美股觀盤</span>
+                    <div class="highlight-text">
+                        科技股受 <strong>CapEx 資本支出疑慮與變現效率</strong> 影響出現評價修正，美股四大指數與費半高位震盪；<strong>VIX 恐慌指數上升至 {vix['price']} ({vix['pct']})</strong>，美債 10 年期殖利率落於 <strong>{tnx['price']}%</strong>。
+                    </div>
+                </div>
+                <div class="highlight-item">
+                    <span class="highlight-tag tag-global">全球資產</span>
+                    <div class="highlight-text">
+                        美元指數報 <strong>{dxy['price']}</strong>，紐約黃金 <strong>${gold['price']}</strong>，輕原油 <strong>${oil['price']}</strong>；歐亞股市隨半導體族群分化，市場避險資金逐漸向低估值、高股息與防禦型板塊轉移。
+                    </div>
+                </div>
+                <div class="highlight-item">
+                    <span class="highlight-tag tag-tw">台股開盤</span>
+                    <div class="highlight-text">
+                        台積電 ADR 報 <strong>{tsm['price']} ({tsm['pct']})</strong>，美元/新台幣 <strong>{usdtwd['price']}</strong>。開盤電子權值股面臨扣抵調整壓力，操盤準則建議<strong>「重質不重量、控制總持倉」</strong>、落實嚴格風控。
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Section 1: US 4 Major Indices & Intraday Sparklines -->
         <div class="section-card">
             <div class="section-header">
-                <span>🇺🇸</span> 美股四大指數與費半表現 (含日內走勢)
+                美股四大指數與費半表現 (含日內走勢)
             </div>
             <div class="chart-grid">
                 <div class="index-card">
@@ -583,7 +633,7 @@ def build_cloud_morning_report():
         "date": today_str,
         "title": "全球市場觀盤與台股開盤焦點",
         "filename": output_filename,
-        "summary": "涵蓋美洲/歐洲/亞太與東南亞股市、美股四大指數日內走勢圖、外匯/債市/黃金大宗商品與深度觀盤策略"
+        "summary": "包含觀盤速覽重點、美股四大指數與費半日內走勢圖、匯率/債市/黃金大宗商品與區域股市分析"
     })
 
     with open(json_path, 'w', encoding='utf-8') as f:

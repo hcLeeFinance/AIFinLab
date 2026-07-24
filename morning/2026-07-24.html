@@ -73,8 +73,38 @@
             padding: 24px 20px;
             margin-bottom: 24px;
         }
-        .hero-title { font-size: 1.45rem; font-weight: 800; margin-bottom: 10px; color: #ffffff; }
-        .hero-subtitle { font-size: 0.95rem; color: var(--text-muted); line-height: 1.6; }
+        .hero-title { font-size: 1.45rem; font-weight: 800; margin-bottom: 16px; color: #ffffff; display: flex; align-items: center; gap: 8px; }
+        
+        /* Hero Highlights Box */
+        .hero-highlights {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .highlight-item {
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px;
+            padding: 12px 14px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+        @media (max-width: 640px) {
+            .highlight-item { flex-direction: column; gap: 6px; }
+        }
+        .highlight-tag {
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            white-space: nowrap;
+            display: inline-block;
+        }
+        .tag-us { background: rgba(56, 189, 248, 0.2); color: var(--accent-blue); border: 1px solid rgba(56, 189, 248, 0.4); }
+        .tag-global { background: rgba(192, 132, 252, 0.2); color: var(--accent-purple); border: 1px solid rgba(192, 132, 252, 0.4); }
+        .tag-tw { background: rgba(251, 191, 36, 0.2); color: var(--accent-gold); border: 1px solid rgba(251, 191, 36, 0.4); }
+        .highlight-text { font-size: 0.92rem; color: #e2e8f0; line-height: 1.6; }
 
         /* Intraday Chart Grid */
         .chart-grid {
@@ -188,15 +218,35 @@
         </div>
     </header>
     <div class="container">
+        <!-- Hero Section with Summary Highlights -->
         <div class="hero-banner">
-            <h1 class="hero-title">全球市場觀盤與台股開盤焦點</h1>
-            <p class="hero-subtitle">全面彙整美洲、歐洲、亞太與東南亞主要指數動態，搭配美股四大指數日內走勢圖、匯率/債市/大宗商品關鍵數據，提供深度國際宏觀與台股開盤作戰策略。</p>
+            <h1 class="hero-title"><span>🎯</span> 全球市場觀盤與台股開盤焦點速覽</h1>
+            <div class="hero-highlights">
+                <div class="highlight-item">
+                    <span class="highlight-tag tag-us">美股觀盤</span>
+                    <div class="highlight-text">
+                        科技股受 <strong>CapEx 資本支出疑慮與變現效率</strong> 影響出現評價修正，美股四大指數與費半高位震盪；<strong>VIX 恐慌指數上升至 18.64 (-0.32%)</strong>，美債 10 年期殖利率落於 <strong>4.67%</strong>。
+                    </div>
+                </div>
+                <div class="highlight-item">
+                    <span class="highlight-tag tag-global">全球資產</span>
+                    <div class="highlight-text">
+                        美元指數報 <strong>101.45</strong>，紐約黃金 <strong>$4,063.00</strong>，輕原油 <strong>$89.77</strong>；歐亞股市隨半導體族群分化，市場避險資金逐漸向低估值、高股息與防禦型板塊轉移。
+                    </div>
+                </div>
+                <div class="highlight-item">
+                    <span class="highlight-tag tag-tw">台股開盤</span>
+                    <div class="highlight-text">
+                        台積電 ADR 報 <strong>406.75 (-3.43%)</strong>，美元/新台幣 <strong>32.36</strong>。開盤電子權值股面臨扣抵調整壓力，操盤準則建議<strong>「重質不重量、控制總持倉」</strong>、落實嚴格風控。
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Section 1: US 4 Major Indices & Intraday Sparklines -->
         <div class="section-card">
             <div class="section-header">
-                <span>🇺🇸</span> 美股四大指數與費半表現 (含日內走勢)
+                美股四大指數與費半表現 (含日內走勢)
             </div>
             <div class="chart-grid">
                 <div class="index-card">
@@ -210,14 +260,14 @@
                     <div class="index-price down">51,815.71</div>
                     <div class="chart-container"><svg viewBox="0 0 320 90" width="100%" height="90" style="overflow:visible; font-family:sans-serif;">
       <defs>
-        <linearGradient id="grad_dji_7875" x1="0" y1="0" x2="0" y2="1">
+        <linearGradient id="grad_dji_8211" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stop-color="#ef4444" stop-opacity="0.35"/>
           <stop offset="100%" stop-color="#ef4444" stop-opacity="0.0"/>
         </linearGradient>
       </defs>
       <rect width="320" height="90" fill="rgba(15,23,42,0.5)" rx="8" stroke="rgba(255,255,255,0.05)"/>
       <line x1="10" y1="73.4" x2="310" y2="73.4" stroke="#64748b" stroke-dasharray="3,3" stroke-width="1"/>
-      <path d="M 10.0,71.5 L 35.0,50.4 L 60.0,53.0 L 85.0,28.2 L 110.0,44.6 L 135.0,41.6 L 160.0,47.5 L 185.0,16.6 L 210.0,18.6 L 235.0,36.3 L 260.0,28.6 L 285.0,43.2 L 310.0,39.5 L 310.0,85 L 10,85 Z" fill="url(#grad_dji_7875)"/>
+      <path d="M 10.0,71.5 L 35.0,50.4 L 60.0,53.0 L 85.0,28.2 L 110.0,44.6 L 135.0,41.6 L 160.0,47.5 L 185.0,16.6 L 210.0,18.6 L 235.0,36.3 L 260.0,28.6 L 285.0,43.2 L 310.0,39.5 L 310.0,85 L 10,85 Z" fill="url(#grad_dji_8211)"/>
       <path d="M 10.0,71.5 L 35.0,50.4 L 60.0,53.0 L 85.0,28.2 L 110.0,44.6 L 135.0,41.6 L 160.0,47.5 L 185.0,16.6 L 210.0,18.6 L 235.0,36.3 L 260.0,28.6 L 285.0,43.2 L 310.0,39.5" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       <circle cx="310.0" cy="39.5" r="4" fill="#ef4444" stroke="#ffffff" stroke-width="1.5"/>
       <text x="308" y="69.4" fill="#94a3b8" font-size="9" text-anchor="end">平盤 51,711.7</text>
@@ -235,14 +285,14 @@
                     <div class="index-price down">7,411.02</div>
                     <div class="chart-container"><svg viewBox="0 0 320 90" width="100%" height="90" style="overflow:visible; font-family:sans-serif;">
       <defs>
-        <linearGradient id="grad_spx_7875" x1="0" y1="0" x2="0" y2="1">
+        <linearGradient id="grad_spx_8211" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stop-color="#ef4444" stop-opacity="0.35"/>
           <stop offset="100%" stop-color="#ef4444" stop-opacity="0.0"/>
         </linearGradient>
       </defs>
       <rect width="320" height="90" fill="rgba(15,23,42,0.5)" rx="8" stroke="rgba(255,255,255,0.05)"/>
       <line x1="10" y1="51.1" x2="310" y2="51.1" stroke="#64748b" stroke-dasharray="3,3" stroke-width="1"/>
-      <path d="M 10.0,26.1 L 33.1,35.0 L 56.2,42.1 L 79.2,16.6 L 102.3,69.0 L 125.4,73.4 L 148.5,69.8 L 171.5,27.8 L 194.6,23.6 L 217.7,50.8 L 240.8,25.3 L 263.8,31.6 L 286.9,39.4 L 310.0,44.2 L 310.0,85 L 10,85 Z" fill="url(#grad_spx_7875)"/>
+      <path d="M 10.0,26.1 L 33.1,35.0 L 56.2,42.1 L 79.2,16.6 L 102.3,69.0 L 125.4,73.4 L 148.5,69.8 L 171.5,27.8 L 194.6,23.6 L 217.7,50.8 L 240.8,25.3 L 263.8,31.6 L 286.9,39.4 L 310.0,44.2 L 310.0,85 L 10,85 Z" fill="url(#grad_spx_8211)"/>
       <path d="M 10.0,26.1 L 33.1,35.0 L 56.2,42.1 L 79.2,16.6 L 102.3,69.0 L 125.4,73.4 L 148.5,69.8 L 171.5,27.8 L 194.6,23.6 L 217.7,50.8 L 240.8,25.3 L 263.8,31.6 L 286.9,39.4 L 310.0,44.2" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       <circle cx="310.0" cy="44.2" r="4" fill="#ef4444" stroke="#ffffff" stroke-width="1.5"/>
       <text x="308" y="47.1" fill="#94a3b8" font-size="9" text-anchor="end">平盤 7,408.3</text>
@@ -260,14 +310,14 @@
                     <div class="index-price down">24,974.14</div>
                     <div class="chart-container"><svg viewBox="0 0 320 90" width="100%" height="90" style="overflow:visible; font-family:sans-serif;">
       <defs>
-        <linearGradient id="grad_ixic_7875" x1="0" y1="0" x2="0" y2="1">
+        <linearGradient id="grad_ixic_8211" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stop-color="#10b981" stop-opacity="0.35"/>
           <stop offset="100%" stop-color="#10b981" stop-opacity="0.0"/>
         </linearGradient>
       </defs>
       <rect width="320" height="90" fill="rgba(15,23,42,0.5)" rx="8" stroke="rgba(255,255,255,0.05)"/>
       <line x1="10" y1="20.2" x2="310" y2="20.2" stroke="#64748b" stroke-dasharray="3,3" stroke-width="1"/>
-      <path d="M 10.0,16.6 L 33.1,33.2 L 56.2,43.1 L 79.2,31.1 L 102.3,70.0 L 125.4,71.5 L 148.5,69.4 L 171.5,48.8 L 194.6,49.8 L 217.7,71.5 L 240.8,56.7 L 263.8,57.0 L 286.9,73.4 L 310.0,72.6 L 310.0,85 L 10,85 Z" fill="url(#grad_ixic_7875)"/>
+      <path d="M 10.0,16.6 L 33.1,33.2 L 56.2,43.1 L 79.2,31.1 L 102.3,70.0 L 125.4,71.5 L 148.5,69.4 L 171.5,48.8 L 194.6,49.8 L 217.7,71.5 L 240.8,56.7 L 263.8,57.0 L 286.9,73.4 L 310.0,72.6 L 310.0,85 L 10,85 Z" fill="url(#grad_ixic_8211)"/>
       <path d="M 10.0,16.6 L 33.1,33.2 L 56.2,43.1 L 79.2,31.1 L 102.3,70.0 L 125.4,71.5 L 148.5,69.4 L 171.5,48.8 L 194.6,49.8 L 217.7,71.5 L 240.8,56.7 L 263.8,57.0 L 286.9,73.4 L 310.0,72.6" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       <circle cx="310.0" cy="72.6" r="4" fill="#10b981" stroke="#ffffff" stroke-width="1.5"/>
       <text x="308" y="16.2" fill="#94a3b8" font-size="9" text-anchor="end">平盤 25,137.7</text>
@@ -285,14 +335,14 @@
                     <div class="index-price down">11,916.93</div>
                     <div class="chart-container"><svg viewBox="0 0 320 90" width="100%" height="90" style="overflow:visible; font-family:sans-serif;">
       <defs>
-        <linearGradient id="grad_sox_7875" x1="0" y1="0" x2="0" y2="1">
+        <linearGradient id="grad_sox_8211" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stop-color="#10b981" stop-opacity="0.35"/>
           <stop offset="100%" stop-color="#10b981" stop-opacity="0.0"/>
         </linearGradient>
       </defs>
       <rect width="320" height="90" fill="rgba(15,23,42,0.5)" rx="8" stroke="rgba(255,255,255,0.05)"/>
       <line x1="10" y1="16.6" x2="310" y2="16.6" stroke="#64748b" stroke-dasharray="3,3" stroke-width="1"/>
-      <path d="M 10.0,29.3 L 40.0,44.0 L 70.0,43.8 L 100.0,48.1 L 130.0,68.5 L 160.0,69.3 L 190.0,70.1 L 220.0,60.2 L 250.0,59.7 L 280.0,71.6 L 310.0,73.4 L 310.0,85 L 10,85 Z" fill="url(#grad_sox_7875)"/>
+      <path d="M 10.0,29.3 L 40.0,44.0 L 70.0,43.8 L 100.0,48.1 L 130.0,68.5 L 160.0,69.3 L 190.0,70.1 L 220.0,60.2 L 250.0,59.7 L 280.0,71.6 L 310.0,73.4 L 310.0,85 L 10,85 Z" fill="url(#grad_sox_8211)"/>
       <path d="M 10.0,29.3 L 40.0,44.0 L 70.0,43.8 L 100.0,48.1 L 130.0,68.5 L 160.0,69.3 L 190.0,70.1 L 220.0,60.2 L 250.0,59.7 L 280.0,71.6 L 310.0,73.4" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       <circle cx="310.0" cy="73.4" r="4" fill="#10b981" stroke="#ffffff" stroke-width="1.5"/>
       <text x="308" y="12.6" fill="#94a3b8" font-size="9" text-anchor="end">平盤 12,343.8</text>

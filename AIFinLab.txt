@@ -10,6 +10,14 @@ AIFinLab/ (專案根目錄)
 ├── lifecf/                # [部署檔] 買房與退休現金流整合計算機 (靜態)
 ├── beta/                  # [部署檔] 由 source_beta 編譯生成 (勿手動修改)
 ├── opt/                   # [部署檔] options
+├── morning/               # [部署檔] 每日晨報觀盤戰情室 (靜態與雲端自動化產物)
+│   ├── index.html         # 晨報戰情室入口與自動化閱讀器
+│   ├── reports.json       # 晨報清單索引
+│   ├── cloud_generate_report.py # 雲端自動生成腳本
+│   └── YYYY-MM-DD.html    # 各日手機響應式晨報 HTML
+│
+├── .github/workflows/     # [自動化] GitHub Actions 自動排程
+│   └── morning_report.yml # 每日 06:30 AM 自動抓數據發布晨報
 │
 ├── source_beta/           # [原始碼] Beta 功能開發區 → 改這裡，再跑 build_site.R
 └── source_opt/            # [原始碼] OptEF 功能開發區

@@ -1,0 +1,33 @@
+name: Automated Morning Report Generator (Option B)
+
+on:
+  schedule:
+    # 22:30 UTC is 06:30 AM Taiwan Time (GMT+8), Sunday through Thursday (for Mon-Fri morning in TW)
+    - cron: '30 22 * * 0-4'
+  workflow_dispatch: # Allows manual one-click trigger from GitHub UI
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Generate Morning Report HTML
+        run: |
+          python morning/cloud_generate_report.py
+
+      - name: Commit and Push changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add morning/
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-generate Daily Morning Report [GitHub Action]" && git push)

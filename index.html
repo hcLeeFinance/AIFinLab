@@ -116,6 +116,12 @@
         .card.opt .btn { background-color: #8250df; color: white; }
         .card.opt .btn:hover { background-color: #6e40c9; }
 
+        /* --- App 0: Morning Report (藍青色系) --- */
+        .card.morning { border-top-color: #0284c7; }
+        .card.morning h3::before { content: "📰"; font-size: 1.2em; }
+        .card.morning .btn { background-color: #0284c7; color: white; }
+        .card.morning .btn:hover { background-color: #0369a1; }
+
         footer{
             text-align: center;
             padding: 40px;
@@ -146,6 +152,15 @@
 
 <div class="container">
     <div class="grid">
+
+        <!-- 0: 每日晨報 -->
+        <div class="card morning">
+            <div>
+                <h3>每日晨報 (Morning Report)</h3>
+                <p>每日美股與台股大盤觀盤戰情室。提供四大指數與費半、強弱勢類股、總體經濟數據與台股開盤連動戰略重點。</p>
+            </div>
+            <a href="morning/index.html" class="btn">進入晨報戰情室 &rarr;</a>
+        </div>
 
         <!-- 1 -->
         <div class="card fv">

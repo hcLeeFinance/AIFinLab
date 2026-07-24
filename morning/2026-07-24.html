@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>每日晨報 - 2026-07-24 全球市場觀盤與台股開盤焦點</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --card-border: #334155;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent-blue: #38bdf8;
+            --accent-purple: #c084fc;
+            --up-color: #ef4444; /* 台灣習慣：漲為紅 */
+            --down-color: #10b981; /* 台灣習慣：跌為綠 */
+            --warning-gold: #fbbf24;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Microsoft JhengHei", sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            line-height: 1.6;
+            padding-bottom: 50px;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Top Header Navigation */
+        .top-header {
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            border-bottom: 1px solid var(--card-border);
+            padding: 20px 16px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-content {
+            max-width: 900px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .brand-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            background: linear-gradient(to right, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .report-date-badge {
+            background: rgba(56, 189, 248, 0.15);
+            color: var(--accent-blue);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            border: 1px solid rgba(56, 189, 248, 0.3);
+        }
+
+        /* Main Container */
+        .container {
+            max-width: 900px;
+            margin: 20px auto 0;
+            padding: 0 16px;
+        }
+
+        /* Hero Banner */
+        .hero-banner {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 24px 20px;
+            margin-bottom: 24px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        }
+
+        .hero-title {
+            font-size: 1.4rem;
+            font-weight: 800;
+            margin-bottom: 10px;
+            color: #ffffff;
+            line-height: 1.3;
+        }
+
+        .hero-subtitle {
+            font-size: 0.95rem;
+            color: var(--text-muted);
+        }
+
+        /* Quick Stat Grid (Mobile Friendly) */
+        .quick-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        @media (min-width: 640px) {
+            .quick-stats {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 14px;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+
+        .stat-change {
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-top: 2px;
+        }
+
+        .up { color: var(--up-color); }
+        .down { color: var(--down-color); }
+
+        /* Section Cards */
+        .section-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 16px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .section-icon {
+            font-size: 1.3rem;
+        }
+
+        /* Responsive Table */
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            margin-bottom: 12px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+            text-align: left;
+        }
+
+        th {
+            background: rgba(15, 23, 42, 0.6);
+            color: var(--text-muted);
+            padding: 10px 12px;
+            font-weight: 600;
+            border-bottom: 1px solid var(--card-border);
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            white-space: nowrap;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Highlight Boxes */
+        .highlight-box {
+            background: rgba(30, 41, 59, 0.8);
+            border-left: 4px solid var(--accent-blue);
+            padding: 12px 16px;
+            border-radius: 0 8px 8px 0;
+            margin-top: 12px;
+            font-size: 0.9rem;
+            color: #cbd5e1;
+        }
+
+        .list-item {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+            font-size: 0.95rem;
+        }
+
+        .list-bullet {
+            color: var(--accent-blue);
+            font-weight: bold;
+        }
+
+        .badge-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-right: 6px;
+        }
+
+        .badge-up { background: rgba(239, 68, 68, 0.15); color: var(--up-color); border: 1px solid rgba(239, 68, 68, 0.3); }
+        .badge-down { background: rgba(16, 185, 129, 0.15); color: var(--down-color); border: 1px solid rgba(16, 185, 129, 0.3); }
+        .badge-neutral { background: rgba(148, 163, 184, 0.15); color: var(--text-muted); border: 1px solid rgba(148, 163, 184, 0.3); }
+
+        /* Taiwan Focus Box */
+        .taiwan-box {
+            background: linear-gradient(135deg, rgba(30, 41, 59, 1) 0%, rgba(15, 23, 42, 1) 100%);
+            border: 1px solid rgba(251, 191, 36, 0.4);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+
+        .taiwan-header {
+            color: var(--warning-gold);
+            font-weight: 700;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        footer {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            margin-top: 40px;
+            padding: 20px 0;
+            border-top: 1px solid var(--card-border);
+        }
+    </style>
+</head>
+<body>
+
+    <header class="top-header">
+        <div class="header-content">
+            <div class="brand-title">
+                <span>📈</span> FinLab 每日晨報
+            </div>
+            <div class="report-date-badge">2026-07-24</div>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Hero Header -->
+        <div class="hero-banner">
+            <h1 class="hero-title">全球市場觀盤與台股開盤焦點</h1>
+            <p class="hero-subtitle">美股科技股受 CapEx 疑慮拉回，VIX 指數與美債殖利率回升；台積電 ADR 修正帶動台股觀盤重質不重量。</p>
+        </div>
+
+        <!-- Quick Stat Highlights -->
+        <div class="quick-stats">
+            <div class="stat-card">
+                <div class="stat-label">道瓊工業 (DJI)</div>
+                <div class="stat-value">51,711.65</div>
+                <div class="stat-change up">-506.93 (-0.97%)</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">標普 500 (SPX)</div>
+                <div class="stat-value">7,408.30</div>
+                <div class="stat-change up">-90.66 (-1.21%)</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">那斯達克 (IXIC)</div>
+                <div class="stat-value">25,137.69</div>
+                <div class="stat-change up">-553.21 (-2.15%)</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">費城半導體 (SOX)</div>
+                <div class="stat-value">12,343.84</div>
+                <div class="stat-change up">-66.83 (-0.54%)</div>
+            </div>
+        </div>
+
+        <!-- Section 1: 4 Major Indices -->
+        <div class="section-card">
+            <div class="section-header">
+                <span class="section-icon">🇺🇸</span> 美股四大指數與費半表現
+            </div>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>指數名稱</th>
+                            <th>收盤點數</th>
+                            <th>漲跌變動</th>
+                            <th>盤面主線與焦點</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>道瓊工業 (DJI)</strong></td>
+                            <td>51,711.65</td>
+                            <td><span class="badge-tag badge-up">-506.93 (-0.97%)</span></td>
+                            <td>能源防禦走強，工業拉回</td>
+                        </tr>
+                        <tr>
+                            <td><strong>標普 500 (SPX)</strong></td>
+                            <td>7,408.30</td>
+                            <td><span class="badge-tag badge-up">-90.66 (-1.21%)</span></td>
+                            <td>科技權值受CapEx疑慮調節</td>
+                        </tr>
+                        <tr>
+                            <td><strong>那斯達克 (IXIC)</strong></td>
+                            <td>25,137.69</td>
+                            <td><span class="badge-tag badge-up">-553.21 (-2.15%)</span></td>
+                            <td>Alphabet / Tesla 賣壓拖累</td>
+                        </tr>
+                        <tr>
+                            <td><strong>羅素 2000 (RUT)</strong></td>
+                            <td>2,245.10</td>
+                            <td><span class="badge-tag badge-up">-24.80 (-1.09%)</span></td>
+                            <td>美債殖利率回升壓抑中小股</td>
+                        </tr>
+                        <tr>
+                            <td><strong>費城半導體 (SOX)</strong></td>
+                            <td>12,343.84</td>
+                            <td><span class="badge-tag badge-up">-66.83 (-0.54%)</span></td>
+                            <td>Intel 盤後反彈 +3.37% 撐盤</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="highlight-box">
+                💡 <strong>盤勢解讀</strong>：科技巨頭 AI 資本支出持續擴大，引發市場對短期自由現金流與投資報酬率 (ROI) 的疑慮。加上油價因地緣政治反彈至近百元，大盤出現防禦性獲利調節。
+            </div>
+        </div>
+
+        <!-- Section 2: Strong Sectors -->
+        <div class="section-card">
+            <div class="section-header">
+                <span class="section-icon">🚀</span> 美國強勢類股與指標股
+            </div>
+            <div class="list-item">
+                <span class="list-bullet">•</span>
+                <div><strong>領漲板塊</strong>：能源 (XLE +1.2%)、公用事業 (XLU +0.4%)。</div>
+            </div>
+            <div class="list-item">
+                <span class="list-bullet">•</span>
+                <div><strong>代表個股</strong>：ExxonMobil (XOM +1.5%)、Chevron (CVX +1.2%)、Intel (INTC 盤後反彈 +3.37%)。</div>
+            </div>
+            <div class="list-item">
+                <span class="list-bullet">•</span>
+                <div><strong>強勢主線</strong>：國際原油期貨反彈帶動石油龍頭漲勢；Intel 季度營收擊敗預期為半導體板塊提供下檔支撐。</div>
+            </div>
+        </div>
+
+        <!-- Section 3: Weak Sectors -->
+        <div class="section-card">
+            <div class="section-header">
+                <span class="section-icon">📉</span> 美國弱勢類股與拖累因素
+            </div>
+            <div class="list-item">
+                <span class="list-bullet">•</span>
+                <div><strong>領跌板塊</strong>：非必需消費 (XLY -2.3%)、通訊服務 (XLC -2.1%)、資訊科技 (XLK -1.8%)。</div>
+            </div>
+            <div class="list-item">
+                <span class="list-bullet">•</span>
+                <div><strong>拖累個股</strong>：Tesla (-4.2%)、Alphabet (-3.5%)、Nvidia (-1.8%)。</div>
+            </div>
+            <div class="list-item">
+                <span class="list-bullet">•</span>
+                <div><strong>修正主因</strong>：法人機構對 AI 軟硬體短期獲利轉化時間重新估值，資金轉向高殖利率與防禦標的。</div>
+            </div>
+        </div>
+
+        <!-- Section 4 & 5: Macro & Policy -->
+        <div class="section-card">
+            <div class="section-header">
+                <span class="section-icon">🏛️</span> 總體經濟與貨幣匯率政策
+            </div>
+            <div class="list-item">
+                <span class="list-bullet">•</span>
+                <div><strong>總經數據</strong>：初領失業金人數維持平穩，油價上漲增添短期通膨黏性因素。</div>
+            </div>
+            <div class="list-item">
+                <span class="list-bullet">•</span>
+                <div><strong>Fed 政策與殖利率</strong>：美債 10 年期殖利率升至 <strong>4.71%</strong>（創 2025 年 1 月以來新高），美元指數 (DXY) 落在 <strong>101.48</strong>。</div>
+            </div>
+        </div>
+
+        <!-- Section 6 & 7: VIX & Sentiment -->
+        <div class="section-card">
+            <div class="section-header">
+                <span class="section-icon">🧠</span> 波動指數與市場情緒
+            </div>
+            <div class="list-item">
+                <span class="list-bullet">•</span>
+                <div><strong>CBOE VIX 恐慌指數</strong>：升至 <strong>19.43</strong> (+3.8%)，反映下檔避險避險需求增加。</div>
+            </div>
+            <div class="list-item">
+                <span class="list-bullet">•</span>
+                <div><strong>CNN 恐懼與貪婪指數</strong>：讀數降至 <strong>39</strong>，市場由中立轉入 <span class="badge-tag badge-up">恐懼 (Fear)</span> 狀態。</div>
+            </div>
+        </div>
+
+        <!-- Section 8: Taiwan Focus -->
+        <div class="taiwan-box">
+            <div class="taiwan-header">
+                <span>🇹🇼</span> 台灣看盤重點與開盤策略
+            </div>
+            <div class="list-item">
+                <span class="list-bullet">•</span>
+                <div><strong>ADR 與夜盤表現</strong>：台積電 ADR (TSM) 收 $415.58 (-1.34%)；台指期夜盤承壓走低。</div>
+            </div>
+            <div class="list-item">
+                <span class="list-bullet">•</span>
+                <div><strong>權值股與半導體鏈</strong>：台積電、聯發科與鴻海開盤面臨美股賣壓牽引，觀察季線/月線支撐力道。</div>
+            </div>
+            <div class="list-item">
+                <span class="list-bullet">•</span>
+                <div><strong>焦點族群觀觀</strong>：AI 伺服器、CPO 光收發、散熱與 CoWoS 設備個股分化，重視實質財報與訂單能見度。</div>
+            </div>
+            <div class="list-item">
+                <span class="list-bullet">•</span>
+                <div><strong>觀盤戰略</strong>：建議投資人控制持倉比重，留意個股開低後的承接力道，避免盲目追高。</div>
+            </div>
+        </div>
+
+        <footer>
+            FinLab Daily Morning Report System © 2026. Designed for Mobile & Desktop.
+        </footer>
+    </div>
+
+</body>
+</html>

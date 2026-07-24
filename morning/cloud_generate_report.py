@@ -11,9 +11,10 @@ AIFINLAB_DIR = os.path.dirname(CURRENT_DIR)
 def fetch_ticker_data(symbol):
     """
     Fetches latest price, change, pct, high, low, previous close from Yahoo Finance API.
+    Uses interval=5m&range=1d to ensure accurate previous day close comparison.
     """
     try:
-        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?interval=1d&range=2d"
+        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?interval=5m&range=1d"
         req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read().decode('utf-8'))
@@ -24,6 +25,18 @@ def fetch_ticker_data(symbol):
             day_high = meta.get('regularMarketDayHigh')
             day_low = meta.get('regularMarketDayLow')
             
+            # Fallback if 5m range=1d does not return previous close
+            if previous_close is None:
+                url_fb = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?interval=1d&range=2d"
+                req_fb = urllib.request.Request(url_fb, headers={'User-Agent': 'Mozilla/5.0'})
+                with urllib.request.urlopen(req_fb, timeout=10) as resp_fb:
+                    data_fb = json.loads(resp_fb.read().decode('utf-8'))
+                    meta_fb = data_fb['chart']['result'][0]['meta']
+                    current_price = current_price or meta_fb.get('regularMarketPrice')
+                    previous_close = meta_fb.get('chartPreviousClose') or meta_fb.get('previousClose')
+                    day_high = day_high or meta_fb.get('regularMarketDayHigh')
+                    day_low = day_low or meta_fb.get('regularMarketDayLow')
+
             if current_price is not None and previous_close is not None:
                 change = current_price - previous_close
                 change_pct = (change / previous_close) * 100 if previous_close != 0 else 0
@@ -143,10 +156,10 @@ def build_cloud_morning_report():
     prev_ixic, quotes_ixic = fetch_intraday_data("^IXIC")
     prev_sox, quotes_sox = fetch_intraday_data("^SOX")
 
-    svg_dji = generate_svg_chart("dji", prev_dji or dji['prev_close'], quotes_dji)
-    svg_spx = generate_svg_chart("spx", prev_spx or spx['prev_close'], quotes_spx)
-    svg_ixic = generate_svg_chart("ixic", prev_ixic or ixic['prev_close'], quotes_ixic)
-    svg_sox = generate_svg_chart("sox", prev_sox or sox['prev_close'], quotes_sox)
+    svg_dji = generate_svg_chart("dji", dji['prev_close'] or prev_dji, quotes_dji)
+    svg_spx = generate_svg_chart("spx", spx['prev_close'] or prev_spx, quotes_spx)
+    svg_ixic = generate_svg_chart("ixic", ixic['prev_close'] or prev_ixic, quotes_ixic)
+    svg_sox = generate_svg_chart("sox", sox['prev_close'] or prev_sox, quotes_sox)
 
     # 2. 歐洲 (Europe)
     ftse = fetch_ticker_data("^FTSE")
@@ -268,7 +281,6 @@ def build_cloud_morning_report():
         }}
         .hero-title {{ font-size: 1.45rem; font-weight: 800; margin-bottom: 16px; color: #ffffff; display: flex; align-items: center; gap: 8px; }}
         
-        /* Hero Highlights Box */
         .hero-highlights {{
             display: flex;
             flex-direction: column;
@@ -299,7 +311,6 @@ def build_cloud_morning_report():
         .tag-tw {{ background: rgba(251, 191, 36, 0.2); color: var(--accent-gold); border: 1px solid rgba(251, 191, 36, 0.4); }}
         .highlight-text {{ font-size: 0.92rem; color: #e2e8f0; line-height: 1.6; }}
 
-        /* Intraday Chart Grid */
         .chart-grid {{
             display: grid;
             grid-template-columns: 1fr;
@@ -329,7 +340,6 @@ def build_cloud_morning_report():
         .index-price {{ font-size: 1.25rem; font-weight: 800; margin-top: 2px; }}
         .chart-container {{ margin-top: 10px; width: 100%; }}
 
-        /* Section Cards */
         .section-card {{
             background: var(--card-bg);
             border: 1px solid var(--card-border);
@@ -349,7 +359,6 @@ def build_cloud_morning_report():
             gap: 8px;
         }}
 
-        /* Grid for Asset Classes */
         .asset-grid {{
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -367,7 +376,6 @@ def build_cloud_morning_report():
         .asset-label {{ font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px; }}
         .asset-val {{ font-size: 1.1rem; font-weight: 700; color: #ffffff; }}
 
-        /* Tables */
         .table-responsive {{ width: 100%; overflow-x: auto; margin-bottom: 16px; }}
         table {{ width: 100%; border-collapse: collapse; font-size: 0.9rem; }}
         th {{ background: rgba(15, 23, 42, 0.8); color: var(--text-muted); padding: 10px 12px; text-align: left; font-weight: 600; }}
@@ -378,7 +386,6 @@ def build_cloud_morning_report():
         .up {{ color: var(--up-color); }}
         .down {{ color: var(--down-color); }}
 
-        /* Analysis Box */
         .analysis-box {{
             background: linear-gradient(135deg, rgba(30,41,59,0.9) 0%, rgba(15,23,42,0.9) 100%);
             border-left: 4px solid var(--accent-blue);
@@ -423,7 +430,7 @@ def build_cloud_morning_report():
                 <div class="highlight-item">
                     <span class="highlight-tag tag-us">美股觀盤</span>
                     <div class="highlight-text">
-                        科技股受 <strong>CapEx 資本支出疑慮與變現效率</strong> 影響出現評價修正，美股四大指數與費半高位震盪；<strong>VIX 恐慌指數上升至 {vix['price']} ({vix['pct']})</strong>，美債 10 年期殖利率落於 <strong>{tnx['price']}%</strong>。
+                        道瓊工業 {format_badge(dji)}、標普500 {format_badge(spx)}、那斯達克 {format_badge(ixic)}、費半 {format_badge(sox)}。科技與半導體族群受 <strong>CapEx 資本支出疑慮與利潤率檢視</strong> 震盪消化，<strong>VIX 恐慌指數落於 {vix['price']} ({vix['pct']})</strong>，美債 10 年期殖利率落於 <strong>{tnx['price']}%</strong>。
                     </div>
                 </div>
                 <div class="highlight-item">
@@ -587,7 +594,7 @@ def build_cloud_morning_report():
 
             <div class="analysis-box" style="border-left-color: var(--accent-purple);">
                 <h4 style="color:var(--accent-purple);">2. VIX 恐慌指數與美債殖利率聯動</h4>
-                <p>隨著 CBOE VIX 恐慌指數升至 {vix['price']} ({vix['pct']})，市場避險情緒顯著升溫。美國 10 年期國債殖利率維持在 {tnx['price']}% 震盪，美元指數落於 {dxy['price']}，顯示市場在評估聯轉會 Fed 降息預期與通膨數據彈升風險之間尋求平衡。債券殖利率的高位震盪亦對高本益比科技股形成估值天花板效應。</p>
+                <p>隨著 CBOE VIX 恐慌指數落在 {vix['price']} ({vix['pct']})，市場避險情緒顯著升溫。美國 10 年期國債殖利率維持在 {tnx['price']}% 震盪，美元指數落於 {dxy['price']}，顯示市場在評估聯轉會 Fed 降息預期與通膨數據彈升風險之間尋求平衡。債券殖利率的高位震盪亦對高本益比科技股形成估值天花板效應。</p>
             </div>
 
             <div class="analysis-box" style="border-left-color: var(--accent-green);">
@@ -624,7 +631,7 @@ def build_cloud_morning_report():
             <div style="font-size: 0.95rem; line-height: 1.8;">
                 <p>• <strong>台積電 ADR (TSM) 觀察</strong>：最新報價 {tsm['price']} ({tsm['pct']})。台積電 ADR 走勢為台股開盤指數波動之直接扣抵指標，若 ADR 承壓，大盤開盤指數將面臨點數調整壓力。</p>
                 <p>• <strong>匯率動態 (USD/TWD)</strong>：美元兌新台幣報 {usdtwd['price']} ({usdtwd['pct']})，需密密切留意外資淨匯出與期貨空單避險減碼趨勢。</p>
-                <p>• <strong>觀盤戰略（重質不重量）</strong>：美股科技股受 CapEx 疑慮修正，連帶壓制台股電子權值股走勢；然中長期 AI 基礎建設需求未變。現階段戰術應秉持<strong>「重質不重量、控制總持倉」</strong>原則，嚴格限制槓桿比率，避開高本益比純題材炒作股，伺機圍繞具備實質獲利保護、高股息防禦屬性與權值實質支撐之績優標的擇優佈局。」</p>
+                <p>• <strong>觀盤戰略（重質不重量）</strong>：美股科技股受 CapEx 疑慮修正，連帶壓制台股電子權值股走勢；然中長期 AI 基礎建設需求未變。現階段戰術應秉持<strong>「重質不重量、控制總持倉」</strong>原則，嚴格限制槓桿比率，避開高本益比純題材炒作股，伺機圍繞具備實質獲利保護、高股息防禦屬性與權值支撐之績優標的擇優佈局。」</p>
             </div>
         </div>
 

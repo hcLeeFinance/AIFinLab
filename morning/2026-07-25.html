@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>每日晨報 - 2026-07-25 全球市場觀盤與台股開盤焦點</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --card-border: #334155;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent-blue: #38bdf8;
+            --accent-purple: #c084fc;
+            --accent-green: #34d399;
+            --accent-gold: #fbbf24;
+            --up-color: #ef4444;
+            --down-color: #10b981;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Microsoft JhengHei", sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            line-height: 1.6;
+            padding-bottom: 50px;
+        }
+        .top-header {
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            border-bottom: 1px solid var(--card-border);
+            padding: 14px 16px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .header-content {
+            max-width: 960px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .brand-title {
+            font-size: 1.15rem;
+            font-weight: 700;
+            background: linear-gradient(to right, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .history-select {
+            background: rgba(15, 23, 42, 0.9);
+            color: var(--accent-blue);
+            border: 1px solid rgba(56, 189, 248, 0.4);
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            outline: none;
+            cursor: pointer;
+        }
+        .report-date-badge {
+            background: rgba(56, 189, 248, 0.15);
+            color: var(--accent-blue);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            border: 1px solid rgba(56, 189, 248, 0.3);
+        }
+        .container {
+            max-width: 960px;
+            margin: 20px auto 0;
+            padding: 0 16px;
+        }
+        .hero-banner {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 24px 20px;
+            margin-bottom: 24px;
+        }
+        .hero-title { font-size: 1.45rem; font-weight: 800; margin-bottom: 16px; color: #ffffff; display: flex; align-items: center; gap: 8px; }
+        
+        .hero-highlights {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .highlight-item {
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px;
+            padding: 12px 14px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+        @media (max-width: 640px) {
+            .highlight-item { flex-direction: column; gap: 6px; }
+        }
+        .highlight-tag {
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            white-space: nowrap;
+            display: inline-block;
+        }
+        .tag-us { background: rgba(56, 189, 248, 0.2); color: var(--accent-blue); border: 1px solid rgba(56, 189, 248, 0.4); }
+        .tag-global { background: rgba(192, 132, 252, 0.2); color: var(--accent-purple); border: 1px solid rgba(192, 132, 252, 0.4); }
+        .tag-tw { background: rgba(251, 191, 36, 0.2); color: var(--accent-gold); border: 1px solid rgba(251, 191, 36, 0.4); }
+        .highlight-text { font-size: 0.92rem; color: #e2e8f0; line-height: 1.6; }
+
+        .chart-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        @media (min-width: 640px) {
+            .chart-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        .index-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 14px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .index-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+        .index-name { font-size: 1rem; font-weight: 700; color: #ffffff; }
+        .index-subname { font-size: 0.75rem; color: var(--text-muted); }
+        .index-price { font-size: 1.25rem; font-weight: 800; margin-top: 2px; }
+        .chart-container { margin-top: 10px; width: 100%; }
+
+        .section-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+        .section-header {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 16px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .asset-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+        @media (min-width: 640px) {
+            .asset-grid { grid-template-columns: repeat(3, 1fr); }
+        }
+        .asset-card {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 14px;
+        }
+        .asset-label { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px; }
+        .asset-val { font-size: 1.1rem; font-weight: 700; color: #ffffff; }
+
+        .table-responsive { width: 100%; overflow-x: auto; margin-bottom: 16px; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        th { background: rgba(15, 23, 42, 0.8); color: var(--text-muted); padding: 10px 12px; text-align: left; font-weight: 600; }
+        td { padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .badge-tag { display: inline-block; padding: 3px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; }
+        .badge-up { background: rgba(239, 68, 68, 0.15); color: var(--up-color); border: 1px solid rgba(239, 68, 68, 0.3); }
+        .badge-down { background: rgba(16, 185, 129, 0.15); color: var(--down-color); border: 1px solid rgba(16, 185, 129, 0.3); }
+        .up { color: var(--up-color); }
+        .down { color: var(--down-color); }
+
+        .analysis-box {
+            background: linear-gradient(135deg, rgba(30,41,59,0.9) 0%, rgba(15,23,42,0.9) 100%);
+            border-left: 4px solid var(--accent-blue);
+            border-radius: 0 12px 12px 0;
+            padding: 16px;
+            margin-bottom: 16px;
+            font-size: 0.95rem;
+            color: #cbd5e1;
+            line-height: 1.7;
+        }
+        .analysis-box h4 { color: var(--accent-blue); font-size: 1.05rem; margin-bottom: 8px; font-weight: 700; }
+
+        .taiwan-box {
+            background: linear-gradient(135deg, rgba(30, 41, 59, 1) 0%, rgba(15, 23, 42, 1) 100%);
+            border: 1px solid rgba(251, 191, 36, 0.4);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+        .taiwan-header { color: var(--accent-gold); font-weight: 700; font-size: 1.2rem; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+
+        footer { text-align: center; color: var(--text-muted); font-size: 0.8rem; margin-top: 40px; }
+    </style>
+</head>
+<body>
+    <header class="top-header">
+        <div class="header-content">
+            <a href="index.html" class="brand-title"><span>📈</span> FinLab 每日晨報戰情室</a>
+            <div class="header-right">
+                <select id="quickHistorySelect" class="history-select" onchange="if(this.value) window.location.href=this.value;">
+                    <option value="">📅 切換歷史日報...</option>
+                </select>
+                <div class="report-date-badge">2026-07-25</div>
+            </div>
+        </div>
+    </header>
+    <div class="container">
+        <!-- Hero Section with Summary Highlights -->
+        <div class="hero-banner">
+            <h1 class="hero-title"><span>🎯</span> 全球市場觀盤與台股開盤焦點速覽</h1>
+            <div class="hero-highlights">
+                <div class="highlight-item">
+                    <span class="highlight-tag tag-us">美股觀盤</span>
+                    <div class="highlight-text">
+                        道瓊工業 <span class="badge-tag badge-up">+104.06 (+0.20%)</span>、標普500 <span class="badge-tag badge-up">+2.72 (+0.04%)</span>、那斯達克 <span class="badge-tag badge-down">-163.55 (-0.65%)</span>、費半 <span class="badge-tag badge-down">-426.90 (-3.46%)</span>。科技與半導體族群受 <strong>CapEx 資本支出疑慮與利潤率檢視</strong> 震盪消化，<strong>VIX 恐慌指數落於 18.64 (-0.32%)</strong>，美債 10 年期殖利率落於 <strong>4.67%</strong>。
+                    </div>
+                </div>
+                <div class="highlight-item">
+                    <span class="highlight-tag tag-global">全球資產</span>
+                    <div class="highlight-text">
+                        美元指數報 <strong>101.45</strong>，紐約黃金 <strong>$4,063.00</strong>，輕原油 <strong>$89.77</strong>；歐亞股市隨半導體族群分化，市場避險資金逐漸向低估值、高股息與防禦型板塊轉移。
+                    </div>
+                </div>
+                <div class="highlight-item">
+                    <span class="highlight-tag tag-tw">台股開盤</span>
+                    <div class="highlight-text">
+                        台積電 ADR 報 <strong>406.75 (-2.12%)</strong>，美元/新台幣 <strong>32.36</strong>。開盤電子權值股面臨扣抵調整壓力，操盤準則建議<strong>「重質不重量、控制總持倉」</strong>、落實嚴格風控。
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 1: US 4 Major Indices & Intraday Sparklines -->
+        <div class="section-card">
+            <div class="section-header">
+                美股四大指數與費半表現 (含日內走勢)
+            </div>
+            <div class="chart-grid">
+                <div class="index-card">
+                    <div class="index-header">
+                        <div>
+                            <div class="index-name">道瓊工業指數</div>
+                            <div class="index-subname">Dow Jones (DJI)</div>
+                        </div>
+                        <span class="badge-tag badge-up">+104.06 (+0.20%)</span>
+                    </div>
+                    <div class="index-price up">51,815.71</div>
+                    <div class="chart-container"><svg viewBox="0 0 320 90" width="100%" height="90" style="overflow:visible; font-family:sans-serif;">
+      <defs>
+        <linearGradient id="grad_dji_9220" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#ef4444" stop-opacity="0.35"/>
+          <stop offset="100%" stop-color="#ef4444" stop-opacity="0.0"/>
+        </linearGradient>
+      </defs>
+      <rect width="320" height="90" fill="rgba(15,23,42,0.5)" rx="8" stroke="rgba(255,255,255,0.05)"/>
+      <line x1="10" y1="73.4" x2="310" y2="73.4" stroke="#64748b" stroke-dasharray="3,3" stroke-width="1"/>
+      <path d="M 10.0,71.5 L 35.0,50.4 L 60.0,53.0 L 85.0,28.2 L 110.0,44.6 L 135.0,41.6 L 160.0,47.5 L 185.0,16.6 L 210.0,18.6 L 235.0,36.3 L 260.0,28.6 L 285.0,43.2 L 310.0,39.5 L 310.0,85 L 10,85 Z" fill="url(#grad_dji_9220)"/>
+      <path d="M 10.0,71.5 L 35.0,50.4 L 60.0,53.0 L 85.0,28.2 L 110.0,44.6 L 135.0,41.6 L 160.0,47.5 L 185.0,16.6 L 210.0,18.6 L 235.0,36.3 L 260.0,28.6 L 285.0,43.2 L 310.0,39.5" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="310.0" cy="39.5" r="4" fill="#ef4444" stroke="#ffffff" stroke-width="1.5"/>
+      <text x="308" y="69.4" fill="#94a3b8" font-size="9" text-anchor="end">平盤 51,711.7</text>
+    </svg></div>
+                </div>
+
+                <div class="index-card">
+                    <div class="index-header">
+                        <div>
+                            <div class="index-name">標普 500 指數</div>
+                            <div class="index-subname">S&P 500 (SPX)</div>
+                        </div>
+                        <span class="badge-tag badge-up">+2.72 (+0.04%)</span>
+                    </div>
+                    <div class="index-price up">7,411.02</div>
+                    <div class="chart-container"><svg viewBox="0 0 320 90" width="100%" height="90" style="overflow:visible; font-family:sans-serif;">
+      <defs>
+        <linearGradient id="grad_spx_9220" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#ef4444" stop-opacity="0.35"/>
+          <stop offset="100%" stop-color="#ef4444" stop-opacity="0.0"/>
+        </linearGradient>
+      </defs>
+      <rect width="320" height="90" fill="rgba(15,23,42,0.5)" rx="8" stroke="rgba(255,255,255,0.05)"/>
+      <line x1="10" y1="51.1" x2="310" y2="51.1" stroke="#64748b" stroke-dasharray="3,3" stroke-width="1"/>
+      <path d="M 10.0,26.1 L 33.1,35.0 L 56.2,42.1 L 79.2,16.6 L 102.3,69.0 L 125.4,73.4 L 148.5,69.8 L 171.5,27.8 L 194.6,23.6 L 217.7,50.8 L 240.8,25.3 L 263.8,31.6 L 286.9,39.4 L 310.0,44.2 L 310.0,85 L 10,85 Z" fill="url(#grad_spx_9220)"/>
+      <path d="M 10.0,26.1 L 33.1,35.0 L 56.2,42.1 L 79.2,16.6 L 102.3,69.0 L 125.4,73.4 L 148.5,69.8 L 171.5,27.8 L 194.6,23.6 L 217.7,50.8 L 240.8,25.3 L 263.8,31.6 L 286.9,39.4 L 310.0,44.2" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="310.0" cy="44.2" r="4" fill="#ef4444" stroke="#ffffff" stroke-width="1.5"/>
+      <text x="308" y="47.1" fill="#94a3b8" font-size="9" text-anchor="end">平盤 7,408.3</text>
+    </svg></div>
+                </div>
+
+                <div class="index-card">
+                    <div class="index-header">
+                        <div>
+                            <div class="index-name">那斯達克指數</div>
+                            <div class="index-subname">Nasdaq Composite (IXIC)</div>
+                        </div>
+                        <span class="badge-tag badge-down">-163.55 (-0.65%)</span>
+                    </div>
+                    <div class="index-price down">24,974.14</div>
+                    <div class="chart-container"><svg viewBox="0 0 320 90" width="100%" height="90" style="overflow:visible; font-family:sans-serif;">
+      <defs>
+        <linearGradient id="grad_ixic_9220" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#10b981" stop-opacity="0.35"/>
+          <stop offset="100%" stop-color="#10b981" stop-opacity="0.0"/>
+        </linearGradient>
+      </defs>
+      <rect width="320" height="90" fill="rgba(15,23,42,0.5)" rx="8" stroke="rgba(255,255,255,0.05)"/>
+      <line x1="10" y1="20.2" x2="310" y2="20.2" stroke="#64748b" stroke-dasharray="3,3" stroke-width="1"/>
+      <path d="M 10.0,16.6 L 33.1,33.2 L 56.2,43.1 L 79.2,31.1 L 102.3,70.0 L 125.4,71.5 L 148.5,69.4 L 171.5,48.8 L 194.6,49.8 L 217.7,71.5 L 240.8,56.7 L 263.8,57.0 L 286.9,73.4 L 310.0,72.6 L 310.0,85 L 10,85 Z" fill="url(#grad_ixic_9220)"/>
+      <path d="M 10.0,16.6 L 33.1,33.2 L 56.2,43.1 L 79.2,31.1 L 102.3,70.0 L 125.4,71.5 L 148.5,69.4 L 171.5,48.8 L 194.6,49.8 L 217.7,71.5 L 240.8,56.7 L 263.8,57.0 L 286.9,73.4 L 310.0,72.6" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="310.0" cy="72.6" r="4" fill="#10b981" stroke="#ffffff" stroke-width="1.5"/>
+      <text x="308" y="16.2" fill="#94a3b8" font-size="9" text-anchor="end">平盤 25,137.7</text>
+    </svg></div>
+                </div>
+
+                <div class="index-card">
+                    <div class="index-header">
+                        <div>
+                            <div class="index-name">費城半導體指數</div>
+                            <div class="index-subname">PHLX Semiconductor (SOX)</div>
+                        </div>
+                        <span class="badge-tag badge-down">-426.90 (-3.46%)</span>
+                    </div>
+                    <div class="index-price down">11,916.93</div>
+                    <div class="chart-container"><svg viewBox="0 0 320 90" width="100%" height="90" style="overflow:visible; font-family:sans-serif;">
+      <defs>
+        <linearGradient id="grad_sox_9220" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#10b981" stop-opacity="0.35"/>
+          <stop offset="100%" stop-color="#10b981" stop-opacity="0.0"/>
+        </linearGradient>
+      </defs>
+      <rect width="320" height="90" fill="rgba(15,23,42,0.5)" rx="8" stroke="rgba(255,255,255,0.05)"/>
+      <line x1="10" y1="16.6" x2="310" y2="16.6" stroke="#64748b" stroke-dasharray="3,3" stroke-width="1"/>
+      <path d="M 10.0,29.3 L 40.0,44.0 L 70.0,43.8 L 100.0,48.1 L 130.0,68.5 L 160.0,69.3 L 190.0,70.1 L 220.0,60.2 L 250.0,59.7 L 280.0,71.6 L 310.0,73.4 L 310.0,85 L 10,85 Z" fill="url(#grad_sox_9220)"/>
+      <path d="M 10.0,29.3 L 40.0,44.0 L 70.0,43.8 L 100.0,48.1 L 130.0,68.5 L 160.0,69.3 L 190.0,70.1 L 220.0,60.2 L 250.0,59.7 L 280.0,71.6 L 310.0,73.4" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="310.0" cy="73.4" r="4" fill="#10b981" stroke="#ffffff" stroke-width="1.5"/>
+      <text x="308" y="12.6" fill="#94a3b8" font-size="9" text-anchor="end">平盤 12,343.8</text>
+    </svg></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 2: Forex, Bonds & Gold / Commodities -->
+        <div class="section-card">
+            <div class="section-header">
+                <span>💱</span> 外匯、債市與黃金/大宗商品 (Forex, Bonds & Commodities)
+            </div>
+            <div class="asset-grid">
+                <div class="asset-card">
+                    <div class="asset-label">💵 美元指數 (DXY)</div>
+                    <div class="asset-val">101.45</div>
+                    <div style="font-size:0.8rem; margin-top:4px;"><span class="badge-tag badge-up">+0.01 (+0.01%)</span></div>
+                </div>
+                <div class="asset-card">
+                    <div class="asset-label">🇹🇼 美元 / 新台幣 (USD/TWD)</div>
+                    <div class="asset-val">32.36</div>
+                    <div style="font-size:0.8rem; margin-top:4px;"><span class="badge-tag badge-up">+0.06 (+0.19%)</span></div>
+                </div>
+                <div class="asset-card">
+                    <div class="asset-label">🇯🇵 美元 / 日圓 (USD/JPY)</div>
+                    <div class="asset-val">163.77</div>
+                    <div style="font-size:0.8rem; margin-top:4px;"><span class="badge-tag badge-up">+0.00 (+0.00%)</span></div>
+                </div>
+                <div class="asset-card">
+                    <div class="asset-label">📉 美國 10 年期國債殖利率</div>
+                    <div class="asset-val">4.67%</div>
+                    <div style="font-size:0.8rem; margin-top:4px;"><span class="badge-tag badge-down">-0.04 (-0.77%)</span></div>
+                </div>
+                <div class="asset-card">
+                    <div class="asset-label">🪙 紐約黃金期貨 (Gold)</div>
+                    <div class="asset-val">$4,063.00</div>
+                    <div style="font-size:0.8rem; margin-top:4px;"><span class="badge-tag badge-up">+12.80 (+0.32%)</span></div>
+                </div>
+                <div class="asset-card">
+                    <div class="asset-label">🛢️ 紐約輕原油期貨 (WTI)</div>
+                    <div class="asset-val">$89.77</div>
+                    <div style="font-size:0.8rem; margin-top:4px;"><span class="badge-tag badge-down">-2.42 (-2.63%)</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 3: Global Regional Stock Markets -->
+        <div class="section-card">
+            <div class="section-header">
+                <span>🌐</span> 全球區域股市表現 (美洲 / 歐洲 / 亞太與東南亞)
+            </div>
+            
+            <h4 style="color:var(--accent-blue); margin:12px 0 8px;">🇪🇺 歐洲主要指數</h4>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr><th>市場 / 指數名稱</th><th>最新收盤</th><th>當日漲跌</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><strong>英國富時 100 (FTSE 100)</strong></td><td>10,708.68</td><td><span class="badge-tag badge-up">+69.51 (+0.65%)</span></td></tr>
+                        <tr><td><strong>德國 DAX 指數</strong></td><td>24,984.22</td><td><span class="badge-tag badge-up">+221.10 (+0.89%)</span></td></tr>
+                        <tr><td><strong>法國 CAC 40 指數</strong></td><td>8,336.55</td><td><span class="badge-tag badge-up">+37.46 (+0.45%)</span></td></tr>
+                        <tr><td><strong>歐洲斯托克 50 (Euro Stoxx 50)</strong></td><td>6,244.69</td><td><span class="badge-tag badge-up">+34.52 (+0.56%)</span></td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h4 style="color:var(--accent-purple); margin:16px 0 8px;">🌏 亞太與東南亞主要指數</h4>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr><th>市場 / 指數名稱</th><th>最新收盤</th><th>當日漲跌</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><strong>日本日經 225 (Nikkei 225)</strong></td><td>64,611.15</td><td><span class="badge-tag badge-down">-1811.45 (-2.73%)</span></td></tr>
+                        <tr><td><strong>南韓 KOSPI 指數</strong></td><td>6,690.62</td><td><span class="badge-tag badge-down">-406.27 (-5.72%)</span></td></tr>
+                        <tr><td><strong>印度 Nifty 50 指數</strong></td><td>23,767.45</td><td><span class="badge-tag badge-down">-102.15 (-0.43%)</span></td></tr>
+                        <tr><td><strong>新加坡海峽時報指數 (STI)</strong></td><td>5,588.34</td><td><span class="badge-tag badge-up">+6.58 (+0.12%)</span></td></tr>
+                        <tr><td><strong>泰國 SET 指數</strong></td><td>1,644.39</td><td><span class="badge-tag badge-up">+3.36 (+0.20%)</span></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Section 4: Deep Analysis & Global Market Commentary -->
+        <div class="section-card" style="border-left: 4px solid var(--accent-blue);">
+            <div class="section-header" style="color:var(--accent-blue);">
+                <span>📊</span> 全球市場觀盤深度解讀 (Detailed Global Analysis)
+            </div>
+
+            <div class="analysis-box">
+                <h4>1. 美股科技股與 CapEx 資本支出疑慮</h4>
+                <p>近期美股科技巨頭（CSP 雲端大廠與半導體供應鏈）陸續公佈財報，市場焦點已從單純的「營收成長」轉向檢視「AI CapEx 資本支出之變現效率 (ROI)」。在市場高標準審視下，大廠高額 Capex 引起短期毛利率與自由現金流壓縮之疑慮，誘發美股科技股與費城半導體指數出現階段性獲利回吐與評價修正。</p>
+            </div>
+
+            <div class="analysis-box" style="border-left-color: var(--accent-purple);">
+                <h4 style="color:var(--accent-purple);">2. VIX 恐慌指數與美債殖利率聯動</h4>
+                <p>隨著 CBOE VIX 恐慌指數落在 18.64 (-0.32%)，市場避險情緒顯著升溫。美國 10 年期國債殖利率維持在 4.67% 震盪，美元指數落於 101.45，顯示市場在評估聯轉會 Fed 降息預期與通膨數據彈升風險之間尋求平衡。債券殖利率的高位震盪亦對高本益比科技股形成估值天花板效應。</p>
+            </div>
+
+            <div class="analysis-box" style="border-left-color: var(--accent-green);">
+                <h4 style="color:var(--accent-green);">3. 歐洲與亞太股市連動效應</h4>
+                <p>歐亞股市受美股連帶引導呈現分化格局。日經 225 (64,611.15) 與韓股 KOSPI (6,690.62) 受到半導體與出口權值股修正牽連；而印度 Nifty 50 (23,767.45) 與新加坡 STI (5,588.34) 則展現內需與金融防禦性支撐力道，凸顯在全球市場波動劇烈下，資金逐漸向低估值、高股息與防禦型板塊轉移。</p>
+            </div>
+        </div>
+
+        <!-- Section 5: Seasonality & Timeline Assessment -->
+        <div class="section-card" style="border-left: 4px solid var(--accent-purple);">
+            <div class="section-header" style="color: var(--accent-purple);">
+                <span>📅</span> 歷史季節性與時間軸評估 (Seasonality & Timeline)
+            </div>
+            <div style="background: rgba(192, 132, 252, 0.1); border-left: 4px solid var(--accent-purple); padding: 12px 16px; border-radius: 0 8px 8px 0; margin-bottom: 14px; font-size:0.95rem; color:#e9d5ff;">
+                <strong>🎯 時間軸關鍵轉折預估</strong>：預估本波科技股築底與關鍵買點區間落在 <strong>8 月底至 10 月初</strong>。
+            </div>
+            <div style="font-size: 0.95rem; line-height:1.7;">
+                <p><strong>1. 短期（7 月底 ～ 8 月中旬）：財報利空測試與情緒消化期</strong><br>
+                美股科技巨頭與半導體供應鏈密集出刊財報，市場對 Capex 與利潤率要求極度苛刻，指數多呈高波動震盪與二度打底走勢。</p>
+                <br>
+                <p><strong>2. 中期（8 月下旬 ～ 9 月）：美股歷史淡季與橫盤整理</strong><br>
+                統計歷史數據，8 月與 9 月為美股與台股全年表現最疲弱且波動最大之季節。搭配 8 月底 Jackson Hole 央行年會與 9 月 Fed 降息決策，市場估值重估完成前多維持橫盤打底。</p>
+                <br>
+                <p><strong>3. 轉折/觸底時機（9 月底 ～ 10 月初）：迎接 Q4 旺季行情</strong><br>
+                歷年半導體與科技股通常會在 9 月底至 10 月初順利築底完成，並迎來第四季 (Q4) 節慶消費旺季與年底封關行情 (Year-end Rally)。預計拉回均為中長期佈局優質績優股之良機。</p>
+            </div>
+        </div>
+
+        <!-- Section 6: Taiwan Stock Opening Strategy -->
+        <div class="taiwan-box">
+            <div class="taiwan-header">
+                <span>🇹🇼</span> 台灣看盤重點與開盤策略 (Taiwan Opening Strategy)
+            </div>
+            <div style="font-size: 0.95rem; line-height: 1.8;">
+                <p>• <strong>台積電 ADR (TSM) 觀察</strong>：最新報價 406.75 (-2.12%)。台積電 ADR 走勢為台股開盤指數波動之直接扣抵指標，若 ADR 承壓，大盤開盤指數將面臨點數調整壓力。</p>
+                <p>• <strong>匯率動態 (USD/TWD)</strong>：美元兌新台幣報 32.36 (+0.19%)，需密密切留意外資淨匯出與期貨空單避險減碼趨勢。</p>
+                <p>• <strong>觀盤戰略（重質不重量）</strong>：美股科技股受 CapEx 疑慮修正，連帶壓制台股電子權值股走勢；然中長期 AI 基礎建設需求未變。現階段戰術應秉持<strong>「重質不重量、控制總持倉」</strong>原則，嚴格限制槓桿比率，避開高本益比純題材炒作股，伺機圍繞具備實質獲利保護、高股息防禦屬性與權值支撐之績優標的擇優佈局。」</p>
+            </div>
+        </div>
+
+        <footer>FinLab Daily Automated Morning Report System © 2026</footer>
+    </div>
+
+    <script>
+        // Fetch reports.json dynamically to populate quick date selector in header
+        window.addEventListener('DOMContentLoaded', () => {
+            fetch('reports.json?t=' + new Date().getTime())
+                .then(res => res.json())
+                .then(data => {
+                    const selector = document.getElementById('quickHistorySelect');
+                    if (!selector) return;
+                    data.forEach(item => {
+                        const opt = document.createElement('option');
+                        opt.value = item.filename;
+                        opt.textContent = `${item.date} ${item.date === '2026-07-25' ? '(本日)' : ''}`;
+                        if (item.date === '2026-07-25') opt.selected = true;
+                        selector.appendChild(opt);
+                    });
+                })
+                .catch(err => console.log('Could not load reports index:', err));
+        });
+    </script>
+</body>
+</html>

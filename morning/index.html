@@ -110,6 +110,14 @@
     <iframe id="reportFrame" class="content-frame" src="about:blank"></iframe>
 
     <script>
+        // Kept up to date automatically by cloud_generate_report.py on every run.
+        // Used as a fallback so the selector still works when this file is opened
+        // directly (file://), where fetch() against reports.json is blocked by
+        // the browser.
+        /* EMBEDDED_REPORTS_START */
+        const EMBEDDED_REPORTS = [{"date": "2026-07-25", "title": "全球市場觀盤與台股開盤焦點", "filename": "2026-07-25.html", "summary": "包含觀盤速覽重點、美股四大指數與費半日內走勢圖、匯率/債市/黃金大宗商品與區域股市分析"}, {"date": "2026-07-24", "title": "全球市場觀盤與台股開盤焦點", "filename": "2026-07-24.html", "summary": "包含觀盤速覽重點、美股四大指數與費半日內走勢圖、匯率/債市/黃金大宗商品與區域股市分析"}];
+        /* EMBEDDED_REPORTS_END */
+
         let reportsData = [];
 
         async function fetchReports() {
@@ -119,9 +127,8 @@
                 reportsData = await res.json();
                 populateSelector();
             } catch (err) {
-                console.error(err);
-                // Fallback for direct offline / static load
-                reportsData = [{ date: '2026-07-24', filename: '2026-07-24.html', title: '最新晨報' }];
+                console.warn('reports.json fetch failed (expected when opening this file directly); using embedded list.', err);
+                reportsData = EMBEDDED_REPORTS;
                 populateSelector();
             }
         }

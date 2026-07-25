@@ -3,10 +3,25 @@ import sys
 import json
 import datetime
 import urllib.request
-import re
+import concurrent.futures
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 AIFINLAB_DIR = os.path.dirname(CURRENT_DIR)
+
+# Symbols fetched for every report. Key -> Yahoo Finance ticker symbol.
+TICKER_SYMBOLS = {
+    "dji": "^DJI", "spx": "^GSPC", "ixic": "^IXIC", "sox": "^SOX", "tsm": "TSM", "vix": "^VIX",
+    "ftse": "^FTSE", "dax": "^GDAXI", "cac": "^FCHI", "stoxx": "^STOXX50E",
+    "n225": "^N225", "kospi": "^KS11", "nifty": "^NSEI", "sti": "^STI", "set_idx": "^SET.BK",
+    "dxy": "DX-Y.NYB", "usdtwd": "USDTWD=X", "usdjpy": "USDJPY=X", "tnx": "^TNX",
+    "gold": "GC=F", "oil": "CL=F",
+}
+# Subset that also gets an intraday sparkline chart.
+INTRADAY_KEYS = ["dji", "spx", "ixic", "sox"]
+
+# Below this success ratio, abort instead of publishing a mostly-empty report.
+MIN_QUALITY_RATIO = 0.5
+
 
 def fetch_ticker_data(symbol):
     """
@@ -24,7 +39,7 @@ def fetch_ticker_data(symbol):
             previous_close = meta.get('chartPreviousClose') or meta.get('previousClose')
             day_high = meta.get('regularMarketDayHigh')
             day_low = meta.get('regularMarketDayLow')
-            
+
             # Fallback if 5m range=1d does not return previous close
             if previous_close is None:
                 url_fb = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?interval=1d&range=2d"
@@ -65,6 +80,7 @@ def fetch_ticker_data(symbol):
         "low": "--"
     }
 
+
 def fetch_intraday_data(symbol):
     """
     Fetches intraday 5-minute price series and previous close for chart plotting.
@@ -84,6 +100,32 @@ def fetch_intraday_data(symbol):
         print(f"[WARN] Failed to fetch intraday for {symbol}: {e}")
         return None, []
 
+
+def fetch_all_market_data():
+    """
+    Fetches every ticker + intraday series in parallel (instead of ~25 sequential
+    HTTP round-trips) and returns (ticker_data, intraday_data) keyed by TICKER_SYMBOLS keys.
+    """
+    with concurrent.futures.ThreadPoolExecutor(max_workers=12) as pool:
+        ticker_futures = {key: pool.submit(fetch_ticker_data, sym) for key, sym in TICKER_SYMBOLS.items()}
+        intraday_futures = {key: pool.submit(fetch_intraday_data, TICKER_SYMBOLS[key]) for key in INTRADAY_KEYS}
+        ticker_data = {key: f.result() for key, f in ticker_futures.items()}
+        intraday_data = {key: f.result() for key, f in intraday_futures.items()}
+    return ticker_data, intraday_data
+
+
+def assess_data_quality(ticker_data):
+    """
+    Returns (success_count, total_count, ratio, failed_symbols) so callers can decide
+    whether to publish, warn, or abort instead of silently shipping an all-'--' report.
+    """
+    total = len(ticker_data)
+    failed = [d['symbol'] for d in ticker_data.values() if d['price'] == '--']
+    success = total - len(failed)
+    ratio = success / total if total else 0
+    return success, total, ratio, failed
+
+
 def generate_svg_chart(symbol_id, prev_close, quotes):
     """
     Generates a responsive SVG sparkline chart for intraday trend visual.
@@ -94,35 +136,35 @@ def generate_svg_chart(symbol_id, prev_close, quotes):
             <rect width="{w}" height="{h}" fill="rgba(15,23,42,0.4)" rx="8"/>
             <text x="{w/2}" y="{h/2}" fill="#64748b" font-size="12" text-anchor="middle" dominant-baseline="middle">盤中走勢資料擷取中...</text>
         </svg>'''
-    
+
     all_vals = quotes + [prev_close]
     min_v, max_v = min(all_vals), max(all_vals)
     span = max_v - min_v
     padding = span * 0.08 if span > 0 else 1.0
     min_v -= padding
     max_v += padding
-    
+
     def get_y(val):
         return h - 12 - ((val - min_v) / (max_v - min_v)) * (h - 24)
-        
+
     y_prev = get_y(prev_close)
-    
+
     n = len(quotes)
     points = []
     for i, q in enumerate(quotes):
         x = 10 + (i / (n - 1 if n > 1 else 1)) * (w - 20)
         y = get_y(q)
         points.append((x, y))
-        
+
     path_d = "M " + " L ".join([f"{x:.1f},{y:.1f}" for x, y in points])
     fill_d = path_d + f" L {w-10:.1f},{h-5} L 10,{h-5} Z"
-    
+
     is_up = quotes[-1] >= prev_close
     stroke_color = "#ef4444" if is_up else "#10b981"
     grad_id = f"grad_{symbol_id}_{int(datetime.datetime.now().timestamp()) % 10000}"
-    
+
     last_x, last_y = points[-1]
-    
+
     svg = f'''<svg viewBox="0 0 {w} {h}" width="100%" height="{h}" style="overflow:visible; font-family:sans-serif;">
       <defs>
         <linearGradient id="{grad_id}" x1="0" y1="0" x2="0" y2="1">
@@ -139,54 +181,95 @@ def generate_svg_chart(symbol_id, prev_close, quotes):
     </svg>'''
     return svg
 
+
+def format_badge(data):
+    """Neutral badge (not red/green) when the fetch failed, so '--' never reads as 'up'."""
+    if data['price'] == '--':
+        return '<span class="badge-tag badge-na">資料擷取中</span>'
+    cls = 'badge-up' if data['raw_pct'] >= 0 else 'badge-down'
+    return f'<span class="badge-tag {cls}">{data["change"]} ({data["pct"]})</span>'
+
+
+def dir_class(data):
+    """CSS class for price coloring; empty (neutral) when the fetch failed."""
+    if data['price'] == '--':
+        return ''
+    return 'up' if data['raw_pct'] >= 0 else 'down'
+
+
+def update_index_embedded_reports(reports):
+    """
+    Keeps AIFinLab/morning/index.html's EMBEDDED_REPORTS fallback in sync with
+    reports.json, so the hub page's date selector still works when opened
+    directly (file://) instead of served over http(s).
+    """
+    index_path = os.path.join(CURRENT_DIR, "index.html")
+    if not os.path.exists(index_path):
+        print("[WARN] index.html not found; skipping embedded reports update.")
+        return
+    with open(index_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+    start_marker = "/* EMBEDDED_REPORTS_START */"
+    end_marker = "/* EMBEDDED_REPORTS_END */"
+    start_idx = content.find(start_marker)
+    end_idx = content.find(end_marker)
+    if start_idx == -1 or end_idx == -1:
+        print("[WARN] index.html missing EMBEDDED_REPORTS markers; skipping embedded reports update.")
+        return
+    start_idx += len(start_marker)
+    new_block = f"\n        const EMBEDDED_REPORTS = {json.dumps(reports, ensure_ascii=False)};\n        "
+    content = content[:start_idx] + new_block + content[end_idx:]
+    with open(index_path, 'w', encoding='utf-8') as f:
+        f.write(content)
+    print(f"[OK] Updated embedded reports list in {index_path}")
+
+
 def build_cloud_morning_report():
     today_str = datetime.datetime.now().strftime("%Y-%m-%d")
-    
-    # 1. 美洲 (Americas)
-    dji = fetch_ticker_data("^DJI")
-    spx = fetch_ticker_data("^GSPC")
-    ixic = fetch_ticker_data("^IXIC")
-    sox = fetch_ticker_data("^SOX")
-    tsm = fetch_ticker_data("TSM")
-    vix = fetch_ticker_data("^VIX")
 
-    # Fetch Intraday Charts for US 4 Major Indices
-    prev_dji, quotes_dji = fetch_intraday_data("^DJI")
-    prev_spx, quotes_spx = fetch_intraday_data("^GSPC")
-    prev_ixic, quotes_ixic = fetch_intraday_data("^IXIC")
-    prev_sox, quotes_sox = fetch_intraday_data("^SOX")
+    ticker_data, intraday_data = fetch_all_market_data()
 
-    svg_dji = generate_svg_chart("dji", dji['prev_close'] or prev_dji, quotes_dji)
-    svg_spx = generate_svg_chart("spx", spx['prev_close'] or prev_spx, quotes_spx)
-    svg_ixic = generate_svg_chart("ixic", ixic['prev_close'] or prev_ixic, quotes_ixic)
-    svg_sox = generate_svg_chart("sox", sox['prev_close'] or prev_sox, quotes_sox)
+    dji, spx, ixic, sox, tsm, vix = (ticker_data[k] for k in ["dji", "spx", "ixic", "sox", "tsm", "vix"])
+    ftse, dax, cac, stoxx = (ticker_data[k] for k in ["ftse", "dax", "cac", "stoxx"])
+    n225, kospi, nifty, sti, set_idx = (ticker_data[k] for k in ["n225", "kospi", "nifty", "sti", "set_idx"])
+    dxy, usdtwd, usdjpy, tnx, gold, oil = (ticker_data[k] for k in ["dxy", "usdtwd", "usdjpy", "tnx", "gold", "oil"])
 
-    # 2. 歐洲 (Europe)
-    ftse = fetch_ticker_data("^FTSE")
-    dax = fetch_ticker_data("^GDAXI")
-    cac = fetch_ticker_data("^FCHI")
-    stoxx = fetch_ticker_data("^STOXX50E")
+    success, total, ratio, failed_symbols = assess_data_quality(ticker_data)
+    print(f"[INFO] Data quality: {success}/{total} tickers fetched successfully.")
+    if ratio < MIN_QUALITY_RATIO:
+        print(f"[ERROR] Only {success}/{total} tickers succeeded ({ratio:.0%}); "
+              f"failed: {', '.join(failed_symbols)}. Aborting instead of publishing an empty report.")
+        sys.exit(1)
+    quality_warning_html = ""
+    if failed_symbols:
+        quality_warning_html = f'''<div style="background: rgba(251, 191, 36, 0.15); border: 1px solid rgba(251, 191, 36, 0.4); border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; font-size: 0.85rem; color: #fbbf24;">
+                ⚠️ 資料擷取異常：{len(failed_symbols)}/{total} 檔行情資料抓取失敗（{', '.join(failed_symbols)}），相關欄位顯示為「資料擷取中」，請人工核對後再參考。
+            </div>'''
 
-    # 3. 亞太與東南亞 (Asia-Pacific & SE Asia)
-    n225 = fetch_ticker_data("^N225")
-    kospi = fetch_ticker_data("^KS11")
-    nifty = fetch_ticker_data("^NSEI")
-    sti = fetch_ticker_data("^STI")
-    set_idx = fetch_ticker_data("^SET.BK")
+    svg_dji = generate_svg_chart("dji", dji['prev_close'] or intraday_data['dji'][0], intraday_data['dji'][1])
+    svg_spx = generate_svg_chart("spx", spx['prev_close'] or intraday_data['spx'][0], intraday_data['spx'][1])
+    svg_ixic = generate_svg_chart("ixic", ixic['prev_close'] or intraday_data['ixic'][0], intraday_data['ixic'][1])
+    svg_sox = generate_svg_chart("sox", sox['prev_close'] or intraday_data['sox'][0], intraday_data['sox'][1])
 
-    # 4. 匯率、債市與黃金大宗商品 (Forex, Bonds & Commodities)
-    dxy = fetch_ticker_data("DX-Y.NYB")
-    usdtwd = fetch_ticker_data("USDTWD=X")
-    usdjpy = fetch_ticker_data("USDJPY=X")
-    tnx = fetch_ticker_data("^TNX")      # US 10Y Yield
-    fvx = fetch_ticker_data("^FVX")      # US 5Y Yield
-    gold = fetch_ticker_data("GC=F")
-    oil = fetch_ticker_data("CL=F")
-
-    def format_badge(data):
-        raw = data['raw_pct']
-        cls = 'badge-up' if raw >= 0 else 'badge-down'
-        return f'<span class="badge-tag {cls}">{data["change"]} ({data["pct"]})</span>'
+    # Build the updated reports index before the HTML so it can be embedded as a
+    # fallback for the history dropdown (fetch('reports.json') is blocked when this
+    # file is opened directly via file://).
+    output_filename = f"{today_str}.html"
+    json_path = os.path.join(CURRENT_DIR, "reports.json")
+    reports = []
+    if os.path.exists(json_path):
+        try:
+            with open(json_path, 'r', encoding='utf-8') as f:
+                reports = json.load(f)
+        except Exception:
+            reports = []
+    reports = [r for r in reports if r.get('date') != today_str]
+    reports.insert(0, {
+        "date": today_str,
+        "title": "全球市場觀盤與台股開盤焦點",
+        "filename": output_filename,
+        "summary": "包含觀盤速覽重點、美股四大指數與費半日內走勢圖、匯率/債市/黃金大宗商品與區域股市分析"
+    })
 
     html_content = f"""<!DOCTYPE html>
 <html lang="zh-TW">
@@ -280,7 +363,7 @@ def build_cloud_morning_report():
             margin-bottom: 24px;
         }}
         .hero-title {{ font-size: 1.45rem; font-weight: 800; margin-bottom: 16px; color: #ffffff; display: flex; align-items: center; gap: 8px; }}
-        
+
         .hero-highlights {{
             display: flex;
             flex-direction: column;
@@ -383,6 +466,7 @@ def build_cloud_morning_report():
         .badge-tag {{ display: inline-block; padding: 3px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; }}
         .badge-up {{ background: rgba(239, 68, 68, 0.15); color: var(--up-color); border: 1px solid rgba(239, 68, 68, 0.3); }}
         .badge-down {{ background: rgba(16, 185, 129, 0.15); color: var(--down-color); border: 1px solid rgba(16, 185, 129, 0.3); }}
+        .badge-na {{ background: rgba(148, 163, 184, 0.12); color: var(--text-muted); border: 1px solid rgba(148, 163, 184, 0.3); }}
         .up {{ color: var(--up-color); }}
         .down {{ color: var(--down-color); }}
 
@@ -423,26 +507,31 @@ def build_cloud_morning_report():
         </div>
     </header>
     <div class="container">
+        <div style="background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 10px; padding: 10px 16px; margin-bottom: 16px; font-size: 0.85rem; color: var(--accent-blue); text-align: center;">
+            👨‍🏫 如需要深入分析，請洽銘傳大學李修全教授
+        </div>
+
         <!-- Hero Section with Summary Highlights -->
         <div class="hero-banner">
             <h1 class="hero-title"><span>🎯</span> 全球市場觀盤與台股開盤焦點速覽</h1>
+            {quality_warning_html}
             <div class="hero-highlights">
                 <div class="highlight-item">
                     <span class="highlight-tag tag-us">美股觀盤</span>
                     <div class="highlight-text">
-                        道瓊工業 {format_badge(dji)}、標普500 {format_badge(spx)}、那斯達克 {format_badge(ixic)}、費半 {format_badge(sox)}。科技與半導體族群受 <strong>CapEx 資本支出疑慮與利潤率檢視</strong> 震盪消化，<strong>VIX 恐慌指數落於 {vix['price']} ({vix['pct']})</strong>，美債 10 年期殖利率落於 <strong>{tnx['price']}%</strong>。
+                        道瓊工業 {format_badge(dji)}　標普500 {format_badge(spx)}　那斯達克 {format_badge(ixic)}　費半 {format_badge(sox)}　VIX {vix['price']} ({vix['pct']})　美債10年 {tnx['price']}%
                     </div>
                 </div>
                 <div class="highlight-item">
                     <span class="highlight-tag tag-global">全球資產</span>
                     <div class="highlight-text">
-                        美元指數報 <strong>{dxy['price']}</strong>，紐約黃金 <strong>${gold['price']}</strong>，輕原油 <strong>${oil['price']}</strong>；歐亞股市隨半導體族群分化，市場避險資金逐漸向低估值、高股息與防禦型板塊轉移。
+                        美元指數 {format_badge(dxy)}　紐約黃金 ${gold['price']} {format_badge(gold)}　輕原油 ${oil['price']} {format_badge(oil)}
                     </div>
                 </div>
                 <div class="highlight-item">
                     <span class="highlight-tag tag-tw">台股開盤</span>
                     <div class="highlight-text">
-                        台積電 ADR 報 <strong>{tsm['price']} ({tsm['pct']})</strong>，美元/新台幣 <strong>{usdtwd['price']}</strong>。開盤電子權值股面臨扣抵調整壓力，操盤準則建議<strong>「重質不重量、控制總持倉」</strong>、落實嚴格風控。
+                        台積電 ADR {format_badge(tsm)}　美元/新台幣 {format_badge(usdtwd)}
                     </div>
                 </div>
             </div>
@@ -462,7 +551,7 @@ def build_cloud_morning_report():
                         </div>
                         {format_badge(dji)}
                     </div>
-                    <div class="index-price {'up' if dji['raw_pct']>=0 else 'down'}">{dji['price']}</div>
+                    <div class="index-price {dir_class(dji)}">{dji['price']}</div>
                     <div class="chart-container">{svg_dji}</div>
                 </div>
 
@@ -474,7 +563,7 @@ def build_cloud_morning_report():
                         </div>
                         {format_badge(spx)}
                     </div>
-                    <div class="index-price {'up' if spx['raw_pct']>=0 else 'down'}">{spx['price']}</div>
+                    <div class="index-price {dir_class(spx)}">{spx['price']}</div>
                     <div class="chart-container">{svg_spx}</div>
                 </div>
 
@@ -486,7 +575,7 @@ def build_cloud_morning_report():
                         </div>
                         {format_badge(ixic)}
                     </div>
-                    <div class="index-price {'up' if ixic['raw_pct']>=0 else 'down'}">{ixic['price']}</div>
+                    <div class="index-price {dir_class(ixic)}">{ixic['price']}</div>
                     <div class="chart-container">{svg_ixic}</div>
                 </div>
 
@@ -498,7 +587,7 @@ def build_cloud_morning_report():
                         </div>
                         {format_badge(sox)}
                     </div>
-                    <div class="index-price {'up' if sox['raw_pct']>=0 else 'down'}">{sox['price']}</div>
+                    <div class="index-price {dir_class(sox)}">{sox['price']}</div>
                     <div class="chart-container">{svg_sox}</div>
                 </div>
             </div>
@@ -548,7 +637,7 @@ def build_cloud_morning_report():
             <div class="section-header">
                 <span>🌐</span> 全球區域股市表現 (美洲 / 歐洲 / 亞太與東南亞)
             </div>
-            
+
             <h4 style="color:var(--accent-blue); margin:12px 0 8px;">🇪🇺 歐洲主要指數</h4>
             <div class="table-responsive">
                 <table>
@@ -588,18 +677,7 @@ def build_cloud_morning_report():
             </div>
 
             <div class="analysis-box">
-                <h4>1. 美股科技股與 CapEx 資本支出疑慮</h4>
-                <p>近期美股科技巨頭（CSP 雲端大廠與半導體供應鏈）陸續公佈財報，市場焦點已從單純的「營收成長」轉向檢視「AI CapEx 資本支出之變現效率 (ROI)」。在市場高標準審視下，大廠高額 Capex 引起短期毛利率與自由現金流壓縮之疑慮，誘發美股科技股與費城半導體指數出現階段性獲利回吐與評價修正。</p>
-            </div>
-
-            <div class="analysis-box" style="border-left-color: var(--accent-purple);">
-                <h4 style="color:var(--accent-purple);">2. VIX 恐慌指數與美債殖利率聯動</h4>
-                <p>隨著 CBOE VIX 恐慌指數落在 {vix['price']} ({vix['pct']})，市場避險情緒顯著升溫。美國 10 年期國債殖利率維持在 {tnx['price']}% 震盪，美元指數落於 {dxy['price']}，顯示市場在評估聯轉會 Fed 降息預期與通膨數據彈升風險之間尋求平衡。債券殖利率的高位震盪亦對高本益比科技股形成估值天花板效應。</p>
-            </div>
-
-            <div class="analysis-box" style="border-left-color: var(--accent-green);">
-                <h4 style="color:var(--accent-green);">3. 歐洲與亞太股市連動效應</h4>
-                <p>歐亞股市受美股連帶引導呈現分化格局。日經 225 ({n225['price']}) 與韓股 KOSPI ({kospi['price']}) 受到半導體與出口權值股修正牽連；而印度 Nifty 50 ({nifty['price']}) 與新加坡 STI ({sti['price']}) 則展現內需與金融防禦性支撐力道，凸顯在全球市場波動劇烈下，資金逐漸向低估值、高股息與防禦型板塊轉移。</p>
+                <p>👨‍🏫 如需深入分析，請洽銘傳大學李修全教授</p>
             </div>
         </div>
 
@@ -608,18 +686,8 @@ def build_cloud_morning_report():
             <div class="section-header" style="color: var(--accent-purple);">
                 <span>📅</span> 歷史季節性與時間軸評估 (Seasonality & Timeline)
             </div>
-            <div style="background: rgba(192, 132, 252, 0.1); border-left: 4px solid var(--accent-purple); padding: 12px 16px; border-radius: 0 8px 8px 0; margin-bottom: 14px; font-size:0.95rem; color:#e9d5ff;">
-                <strong>🎯 時間軸關鍵轉折預估</strong>：預估本波科技股築底與關鍵買點區間落在 <strong>8 月底至 10 月初</strong>。
-            </div>
-            <div style="font-size: 0.95rem; line-height:1.7;">
-                <p><strong>1. 短期（7 月底 ～ 8 月中旬）：財報利空測試與情緒消化期</strong><br>
-                美股科技巨頭與半導體供應鏈密集出刊財報，市場對 Capex 與利潤率要求極度苛刻，指數多呈高波動震盪與二度打底走勢。</p>
-                <br>
-                <p><strong>2. 中期（8 月下旬 ～ 9 月）：美股歷史淡季與橫盤整理</strong><br>
-                統計歷史數據，8 月與 9 月為美股與台股全年表現最疲弱且波動最大之季節。搭配 8 月底 Jackson Hole 央行年會與 9 月 Fed 降息決策，市場估值重估完成前多維持橫盤打底。</p>
-                <br>
-                <p><strong>3. 轉折/觸底時機（9 月底 ～ 10 月初）：迎接 Q4 旺季行情</strong><br>
-                歷年半導體與科技股通常會在 9 月底至 10 月初順利築底完成，並迎來第四季 (Q4) 節慶消費旺季與年底封關行情 (Year-end Rally)。預計拉回均為中長期佈局優質績優股之良機。</p>
+            <div style="background: rgba(192, 132, 252, 0.1); border-left: 4px solid var(--accent-purple); padding: 12px 16px; border-radius: 0 8px 8px 0; font-size:0.95rem; color:#e9d5ff;">
+                <p>👨‍🏫 如需深入分析，請洽銘傳大學李修全教授</p>
             </div>
         </div>
 
@@ -629,9 +697,9 @@ def build_cloud_morning_report():
                 <span>🇹🇼</span> 台灣看盤重點與開盤策略 (Taiwan Opening Strategy)
             </div>
             <div style="font-size: 0.95rem; line-height: 1.8;">
-                <p>• <strong>台積電 ADR (TSM) 觀察</strong>：最新報價 {tsm['price']} ({tsm['pct']})。台積電 ADR 走勢為台股開盤指數波動之直接扣抵指標，若 ADR 承壓，大盤開盤指數將面臨點數調整壓力。</p>
-                <p>• <strong>匯率動態 (USD/TWD)</strong>：美元兌新台幣報 {usdtwd['price']} ({usdtwd['pct']})，需密密切留意外資淨匯出與期貨空單避險減碼趨勢。</p>
-                <p>• <strong>觀盤戰略（重質不重量）</strong>：美股科技股受 CapEx 疑慮修正，連帶壓制台股電子權值股走勢；然中長期 AI 基礎建設需求未變。現階段戰術應秉持<strong>「重質不重量、控制總持倉」</strong>原則，嚴格限制槓桿比率，避開高本益比純題材炒作股，伺機圍繞具備實質獲利保護、高股息防禦屬性與權值支撐之績優標的擇優佈局。」</p>
+                <p>• <strong>台積電 ADR (TSM)</strong>：{tsm['price']} {format_badge(tsm)}</p>
+                <p>• <strong>美元/新台幣 (USD/TWD)</strong>：{usdtwd['price']} {format_badge(usdtwd)}</p>
+                <p style="margin-top:10px; color:var(--accent-gold);">👨‍🏫 如需深入分析與操盤策略，請洽銘傳大學李修全教授</p>
             </div>
         </div>
 
@@ -639,54 +707,49 @@ def build_cloud_morning_report():
     </div>
 
     <script>
-        // Fetch reports.json dynamically to populate quick date selector in header
+        // Embedded at generation time so the history dropdown works even when this
+        // file is opened directly (file://), where fetch() against reports.json
+        // is blocked by the browser. If served over http(s), the fetch below still
+        // runs first and wins with the freshest list.
+        const EMBEDDED_REPORTS = {json.dumps(reports, ensure_ascii=False)};
+
+        function populateHistorySelect(data) {{
+            const selector = document.getElementById('quickHistorySelect');
+            if (!selector) return;
+            selector.innerHTML = '<option value="">📅 切換歷史日報...</option>';
+            data.forEach(item => {{
+                const opt = document.createElement('option');
+                opt.value = item.filename;
+                opt.textContent = `${{item.date}} ${{item.date === '{today_str}' ? '(本日)' : ''}}`;
+                if (item.date === '{today_str}') opt.selected = true;
+                selector.appendChild(opt);
+            }});
+        }}
+
         window.addEventListener('DOMContentLoaded', () => {{
             fetch('reports.json?t=' + new Date().getTime())
                 .then(res => res.json())
-                .then(data => {{
-                    const selector = document.getElementById('quickHistorySelect');
-                    if (!selector) return;
-                    data.forEach(item => {{
-                        const opt = document.createElement('option');
-                        opt.value = item.filename;
-                        opt.textContent = `${{item.date}} ${{item.date === '{today_str}' ? '(本日)' : ''}}`;
-                        if (item.date === '{today_str}') opt.selected = true;
-                        selector.appendChild(opt);
-                    }});
-                }})
-                .catch(err => console.log('Could not load reports index:', err));
+                .then(data => populateHistorySelect(data))
+                .catch(err => {{
+                    console.log('reports.json fetch failed (expected when opening this file directly); using embedded list.', err);
+                    populateHistorySelect(EMBEDDED_REPORTS);
+                }});
         }});
     </script>
 </body>
 </html>"""
 
-    output_filename = f"{today_str}.html"
     output_path = os.path.join(CURRENT_DIR, output_filename)
     with open(output_path, 'w', encoding='utf-8') as f:
         f.write(html_content)
     print(f"[OK] Generated cloud HTML: {output_path}")
 
-    # Update reports.json
-    json_path = os.path.join(CURRENT_DIR, "reports.json")
-    reports = []
-    if os.path.exists(json_path):
-        try:
-            with open(json_path, 'r', encoding='utf-8') as f:
-                reports = json.load(f)
-        except Exception:
-            reports = []
-
-    reports = [r for r in reports if r.get('date') != today_str]
-    reports.insert(0, {
-        "date": today_str,
-        "title": "全球市場觀盤與台股開盤焦點",
-        "filename": output_filename,
-        "summary": "包含觀盤速覽重點、美股四大指數與費半日內走勢圖、匯率/債市/黃金大宗商品與區域股市分析"
-    })
-
     with open(json_path, 'w', encoding='utf-8') as f:
         json.dump(reports, f, ensure_ascii=False, indent=2)
     print(f"[OK] Updated {json_path}")
+
+    update_index_embedded_reports(reports)
+
 
 if __name__ == "__main__":
     build_cloud_morning_report()

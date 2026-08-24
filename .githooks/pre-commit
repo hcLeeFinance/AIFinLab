@@ -1,0 +1,12 @@
+#!/bin/sh
+
+repo_root=$(git rev-parse --show-toplevel) || exit 1
+
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$repo_root/scripts/sync_lifecf.ps1"
+sync_status=$?
+if [ "$sync_status" -ne 0 ]; then
+  echo "LifeCF synchronization failed; commit stopped." >&2
+  exit "$sync_status"
+fi
+
+git -C "$repo_root" add -- lifecf/index.html

@@ -6,6 +6,9 @@ source_opt/
 __pycache__/
 *.pyc
 
+# --- 忽略本機 AI 工具設定 ---
+.claude/
+
 # --- 忽略 R 語言暫存檔 (強烈建議加入) ---
 .Rproj.user
 .Rhistory

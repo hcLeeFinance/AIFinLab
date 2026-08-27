@@ -2,8 +2,8 @@ name: Automated Morning Report Generator (Option B)
 
 on:
   schedule:
-    # 23:30 UTC is 07:30 AM Taiwan Time (GMT+8), Sunday through Thursday (for Mon-Fri morning in TW)
-    - cron: '30 23 * * 0-4'
+    # 00:00 UTC is 08:00 AM Taiwan Time (GMT+8), Monday through Friday
+    - cron: '0 0 * * 1-5'
   workflow_dispatch: # Allows manual one-click trigger from GitHub UI
 
 jobs:

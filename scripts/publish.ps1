@@ -38,5 +38,6 @@ if ($hasStagedChanges) {
 if ($NoPush) {
     Write-Output 'NoPush verification completed; GitHub was not contacted.'
 } else {
+    Invoke-Git -GitArguments @('pull', '--no-edit', 'origin', 'main')
     Invoke-Git -GitArguments @('push')
 }

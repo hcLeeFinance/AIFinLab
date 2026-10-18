@@ -21,3 +21,6 @@ build_site.R
 
 # 忽略特定的txt檔案
 GitHub_Push.txt
+
+# --- 雙北房價：原始與中間資料不上傳（由 GitHub Actions 快取／本機保存）---
+houseprice/data/

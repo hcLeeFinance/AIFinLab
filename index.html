@@ -86,6 +86,12 @@
         .card.mortgage .btn { background-color: #2ea44f; color: white; }
         .card.mortgage .btn:hover { background-color: #2c974b; }
 
+        /* --- App: houseprice (琥珀色系) --- */
+        .card.houseprice { border-top-color: #b45309; }
+        .card.houseprice h3::before { content: "🏙️"; font-size: 1.2em; }
+        .card.houseprice .btn { background-color: #b45309; color: white; }
+        .card.houseprice .btn:hover { background-color: #92400e; }
+
         /* --- App 3: DCA (橘色系) --- */
         .card.dca { border-top-color: #ed8936; }
         .card.dca h3::before { content: "⚖️"; font-size: 1.2em; }
@@ -178,6 +184,15 @@
                 <p>包含本息攤還、變動利率模擬，以及多重提前還款計算。提供詳細的年度還款明細表。</p>
             </div>
             <a href="mortgage/index.html" class="btn">開始分析房貸 &rarr;</a>
+        </div>
+
+        <!-- houseprice：雙北實價登錄房價走勢 -->
+        <div class="card houseprice">
+            <div>
+                <h3>雙北房價走勢 (HousePrice)</h3>
+                <p>內政部實價登錄 2012 年起至今，臺北市、新北市各行政區大樓、華廈、公寓單價與車位價格的季度走勢，含行政區排名與 Excel 下載，每季自動更新。</p>
+            </div>
+            <a href="houseprice/index.html" class="btn">查看房價走勢 &rarr;</a>
         </div>
 
         <!-- 3 -->

@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>雙北房價走勢</title>
+__PLOTLY__
+<style>
+:root {
+  color-scheme: light;
+  --surface-0: #f4f3ef;
+  --surface-1: #fcfcfb;
+  --border: #e2e0da;
+  --grid: #ebe9e4;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #7a7974;
+  --accent: #2a78d6;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+  --s5: #e87ba4; --s6: #008300; --s7: #6250d6;
+  --neutral: #8a8984;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --surface-0: #111110; --surface-1: #1a1a19; --border: #2e2d2b; --grid: #262624;
+    --text-primary: #f0efec; --text-secondary: #c3c2b7; --text-muted: #8f8e88; --accent: #3987e5;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+    --s5: #d55181; --s6: #008300; --s7: #9085e9; --neutral: #9a9992;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface-0: #111110; --surface-1: #1a1a19; --border: #2e2d2b; --grid: #262624;
+  --text-primary: #f0efec; --text-secondary: #c3c2b7; --text-muted: #8f8e88; --accent: #3987e5;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+  --s5: #d55181; --s6: #008300; --s7: #9085e9; --neutral: #9a9992;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--surface-0); color: var(--text-primary);
+  font-family: "Noto Sans TC", "Microsoft JhengHei", "PingFang TC", system-ui, sans-serif;
+  font-size: 14px; line-height: 1.5;
+}
+main { overflow-x: clip; max-width: 1180px; margin: 0 auto; padding: 24px 16px 48px; }
+header h1 { font-size: 22px; margin: 0 0 4px; }
+.crumbs { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; margin-bottom: 12px; font-size: 13px; }
+.crumbs a { color: var(--accent); text-decoration: none; }
+.crumbs a:hover { text-decoration: underline; }
+header p { margin: 0; color: var(--text-secondary); }
+.filters {
+  position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: 12px; align-items: end;
+  padding: 12px 0; margin: 16px 0 8px; background: var(--surface-0); border-bottom: 1px solid var(--border);
+}
+.filters label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-secondary); }
+select, button {
+  font: inherit; color: var(--text-primary); background: var(--surface-1);
+  border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; min-height: 34px;
+}
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.seg button { border: 0; border-radius: 0; background: var(--surface-1); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+.card {
+  background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px;
+  padding: 16px; margin-top: 16px;
+}
+.card h2 { font-size: 16px; margin: 0; }
+.card .sub { color: var(--text-secondary); font-size: 12px; margin: 2px 0 8px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)); gap: 12px; margin-top: 16px; }
+.tile { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; }
+.tile .k { font-size: 12px; color: var(--text-secondary); display: flex; align-items: center; gap: 6px; }
+.tile .v { font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.tile .d { font-size: 12px; color: var(--text-muted); }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.chart { width: 100%; height: 420px; }
+.chart.short { height: 220px; }
+.chart.tall { height: 640px; }
+.grid2 { display: grid; grid-template-columns: 1fr; gap: 0 16px; }
+details { margin-top: 16px; }
+summary { cursor: pointer; color: var(--text-secondary); }
+.tablewrap { overflow-x: auto; max-height: 420px; margin-top: 8px; }
+table { border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; width: 100%; }
+th, td { padding: 4px 8px; border-bottom: 1px solid var(--grid); text-align: right; white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+th { position: sticky; top: 0; background: var(--surface-1); color: var(--text-secondary); font-weight: 500; }
+.notes { color: var(--text-secondary); font-size: 12px; }
+.notes li { margin: 2px 0; }
+@media (max-width: 640px) { .chart { height: 340px; } .chart.tall { height: 900px; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <nav class="crumbs"><a href="../index.html">&larr; FinLab 首頁</a><a href="雙北房價統計.xlsx" download>下載 Excel 統計表</a></nav>
+    <h1>雙北房價走勢</h1>
+    <p id="meta"></p>
+  </header>
+
+  <div class="filters">
+    <label>縣市<select id="city"></select></label>
+    <label>行政區<select id="dist"></select></label>
+    <label>指標
+      <span class="seg" id="metric">
+        <button data-v="中位數" aria-pressed="true">中位數</button>
+        <button data-v="平均數" aria-pressed="false">平均數</button>
+      </span>
+    </label>
+    <label>期間
+      <span class="seg" id="range">
+        <button data-v="all" aria-pressed="true">全部</button>
+        <button data-v="20" aria-pressed="false">近 5 年</button>
+        <button data-v="12" aria-pressed="false">近 3 年</button>
+      </span>
+    </label>
+  </div>
+
+  <div class="tiles" id="tiles"></div>
+
+  <section class="card">
+    <h2 id="t-house"></h2>
+    <div class="sub">扣除車位後的房屋單價，萬元／坪，依交易日期分季。陰影是 25～75 百分位；空心點代表該季成交少於 5 筆。</div>
+    <div id="c-house" class="chart"></div>
+    <div id="c-count" class="chart short"></div>
+  </section>
+
+  <section class="card">
+    <h2 id="t-park"></h2>
+    <div class="sub">單一車位成交價，萬元／個，只計入有單獨標價的車位。可點圖例切換類別。</div>
+    <div id="c-park" class="chart"></div>
+  </section>
+
+  <section class="card">
+    <h2 id="t-rank"></h2>
+    <div class="sub" id="rank-sub"></div>
+    <span class="seg" id="rank-type"></span>
+    <div id="c-rank" class="chart tall"></div>
+  </section>
+
+  <details class="card">
+    <summary>資料表（目前選擇的行政區）</summary>
+    <div class="tablewrap"><table id="tbl"></table></div>
+  </details>
+
+  <section class="card notes">
+    <h2>資料說明</h2>
+    <ul id="notes"></ul>
+  </section>
+</main>
+
+<script>
+const DATA = __DATA__;
+const TYPES = ["大樓", "華廈", "公寓"];
+const TYPE_VAR = { 大樓: "--s1", 華廈: "--s2", 公寓: "--s3" };
+const PARK_ORDER = ["坡道平面", "坡道機械", "升降平面", "升降機械", "塔式車位", "一樓平面", "其他"];
+const PARK_VAR = ["--s1", "--s2", "--s3", "--s4", "--s5", "--s6", "--s7"];
+const state = { city: "臺北市", dist: "全市", metric: "中位數", range: "all", rankType: "大樓" };
+
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const fmt = (v, d = 1) => v == null || isNaN(v) ? "–" : v.toLocaleString("zh-TW", { minimumFractionDigits: d, maximumFractionDigits: d });
+
+function layoutBase(extra = {}) {
+  const grid = css("--grid"), text = css("--text-secondary");
+  return Object.assign({
+    paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
+    font: { family: getComputedStyle(document.body).fontFamily, color: text, size: 12 },
+    margin: { l: 56, r: 16, t: 8, b: 36 },
+    hovermode: "x unified",
+    hoverlabel: { bgcolor: css("--surface-1"), bordercolor: css("--border"), font: { color: css("--text-primary") } },
+    legend: { orientation: "h", y: 1.08, x: 0, font: { color: css("--text-primary") } },
+    xaxis: { gridcolor: grid, linecolor: css("--border"), tickcolor: css("--border"), showspikes: true, spikemode: "across", spikethickness: 1, spikecolor: css("--text-muted"), spikedash: "solid" },
+    yaxis: { gridcolor: grid, zeroline: false, linecolor: css("--border") },
+  }, extra);
+}
+const CFG = { displaylogo: false, responsive: true, modeBarButtonsToRemove: ["lasso2d", "select2d", "autoScale2d"] };
+
+function hexA(hex, a) {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`;
+}
+function clip(series) {
+  if (state.range === "all") return series;
+  const keep = new Set(DATA.quarters.slice(-Number(state.range)));
+  const idx = series.q.map((q, i) => keep.has(q) ? i : -1).filter(i => i >= 0);
+  const out = {};
+  for (const k in series) out[k] = idx.map(i => series[k][i]);
+  return out;
+}
+const key = (...p) => p.join("|");
+function visibleQuarters() {
+  return state.range === "all" ? DATA.quarters : DATA.quarters.slice(-Number(state.range));
+}
+// 類別軸：固定全部季別（缺季仍留空位），每年第一季標年份；最新一季仍在補登，加底色標示
+function timeAxis() {
+  const qs = visibleQuarters();
+  const step = document.getElementById("c-house").clientWidth < 700 ? (qs.length > 24 ? 3 : 1) : 1;
+  const ticks = qs.filter(q => q.endsWith("Q1")).filter((q, i, a) => (a.length - 1 - i) % step === 0);
+  return Object.assign(layoutBase().xaxis, {
+    type: "category", categoryorder: "array", categoryarray: qs, range: [-0.5, qs.length - 0.5],
+    tickmode: "array", tickvals: ticks, ticktext: ticks.map(q => q.slice(0, 4)), tickangle: 0,
+  });
+}
+function partialShade() {
+  const q = DATA.quarters[DATA.quarters.length - 1];
+  return {
+    shapes: [{ type: "rect", xref: "x", yref: "paper", x0: q, x1: q, y0: 0, y1: 1, layer: "below",
+      fillcolor: hexA(css("--neutral"), 0.15), line: { width: 18, color: hexA(css("--neutral"), 0.15) } }],
+    annotations: [{ x: q, y: 1, xref: "x", yref: "paper", yanchor: "bottom", xanchor: "right", text: "補登中", showarrow: false, font: { size: 11, color: css("--text-muted") } }],
+  };
+}
+
+function fillSelectors() {
+  const city = document.getElementById("city"), dist = document.getElementById("dist");
+  city.innerHTML = Object.keys(DATA.districts).map(c => `<option>${c}</option>`).join("");
+  city.value = state.city;
+  const opts = () => {
+    dist.innerHTML = ["全市", ...DATA.districts[state.city]].map(d => `<option>${d}</option>`).join("");
+    dist.value = state.dist;
+  };
+  opts();
+  city.onchange = () => { state.city = city.value; state.dist = "全市"; opts(); render(); };
+  dist.onchange = () => { state.dist = dist.value; render(); };
+  for (const [id, prop] of [["metric", "metric"], ["range", "range"]]) {
+    const seg = document.getElementById(id);
+    seg.onclick = e => {
+      const b = e.target.closest("button"); if (!b) return;
+      seg.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b));
+      state[prop] = b.dataset.v; render();
+    };
+  }
+  const rt = document.getElementById("rank-type");
+  rt.innerHTML = TYPES.map(t => `<button data-v="${t}" aria-pressed="${t === state.rankType}">${t}</button>`).join("");
+  rt.onclick = e => {
+    const b = e.target.closest("button"); if (!b) return;
+    rt.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b));
+    state.rankType = b.dataset.v; renderRank();
+  };
+}
+
+function renderTiles() {
+  const el = document.getElementById("tiles");
+  el.innerHTML = TYPES.map(t => {
+    const s = DATA.house[key(state.city, state.dist, t)];
+    const r = DATA.recent.house[key(state.city, state.dist, t)];
+    let yoy = "";
+    if (s) {
+      // 用季別標籤找去年同季（稀疏行政區會缺季）；最新交易季仍在補登，改用前一個完整季
+      const q = DATA.completeQuarter, prevQ = (Number(q.slice(0, 4)) - 1) + q.slice(4);
+      const i = s.q.indexOf(q), j = s.q.indexOf(prevQ);
+      if (i >= 0 && j >= 0 && s.n[i] >= 5 && s.n[j] >= 5) {
+        const pct = (s.med[i] / s.med[j] - 1) * 100;
+        yoy = `${q} 較去年同季 ${pct >= 0 ? "+" : ""}${fmt(pct)}%`;
+      }
+    }
+    return `<div class="tile"><div class="k"><span class="dot" style="background:var(${TYPE_VAR[t]})"></span>${t}・近 4 季中位數</div>
+      <div class="v">${r ? fmt(r.med) : "–"}<span style="font-size:13px;font-weight:400;color:var(--text-secondary)"> 萬/坪</span></div>
+      <div class="d">${r ? r.n.toLocaleString() + " 筆" : "無成交"}${yoy ? "・" + yoy : ""}</div></div>`;
+  }).join("") + (() => {
+    const r = DATA.recent.park[key(state.city, state.dist, "全部")];
+    return `<div class="tile"><div class="k"><span class="dot" style="background:var(--neutral)"></span>車位・近 4 季中位數</div>
+      <div class="v">${r ? fmt(r.med, 0) : "–"}<span style="font-size:13px;font-weight:400;color:var(--text-secondary)"> 萬/個</span></div>
+      <div class="d">${r ? r.n.toLocaleString() + " 個" : "無成交"}</div></div>`;
+  })();
+}
+
+function renderHouse() {
+  const field = state.metric === "中位數" ? "med" : "mean";
+  const traces = [], counts = [];
+  TYPES.forEach(t => {
+    const raw = DATA.house[key(state.city, state.dist, t)];
+    if (!raw) return;
+    const s = clip(raw), color = css(TYPE_VAR[t]);
+    if (state.metric === "中位數") {
+      traces.push({ x: s.q, y: s.p75, type: "scatter", mode: "lines", line: { width: 0 }, hoverinfo: "skip", showlegend: false, legendgroup: t });
+      traces.push({ x: s.q, y: s.p25, type: "scatter", mode: "lines", line: { width: 0 }, fill: "tonexty", fillcolor: hexA(color, 0.14), hoverinfo: "skip", showlegend: false, legendgroup: t });
+    }
+    traces.push({
+      x: s.q, y: s[field], name: t, legendgroup: t, type: "scatter", mode: "lines+markers",
+      line: { color, width: 2 },
+      marker: { size: s.n.map(n => n < 5 ? 8 : 5), color: s.n.map(n => n < 5 ? css("--surface-1") : color), line: { color, width: 2 } },
+      customdata: s.n.map((n, i) => [n, s.p25[i], s.p75[i]]),
+      hovertemplate: `${t}：<b>%{y:.1f}</b> 萬/坪（%{customdata[0]} 筆）<extra></extra>`,
+    });
+    counts.push({ x: s.q, y: s.n, name: t, type: "bar", marker: { color, line: { color: css("--surface-1"), width: 1 } }, hovertemplate: `${t}：%{y} 筆<extra></extra>`, showlegend: false });
+  });
+  document.getElementById("t-house").textContent = `${state.city}${state.dist === "全市" ? "（全市）" : state.dist}・房屋單價走勢`;
+  Plotly.react("c-house", traces, layoutBase(Object.assign({ xaxis: timeAxis(), yaxis: Object.assign(layoutBase().yaxis, { title: { text: "萬元/坪" }, rangemode: "tozero" }) }, partialShade())), CFG);
+  Plotly.react("c-count", counts, layoutBase(Object.assign({ barmode: "stack", bargap: 0.15, xaxis: timeAxis(), yaxis: Object.assign(layoutBase().yaxis, { title: { text: "成交筆數" } }), shapes: partialShade().shapes })), CFG);
+}
+
+function renderPark() {
+  const field = state.metric === "中位數" ? "med" : "mean";
+  const traces = [];
+  PARK_ORDER.forEach((c, i) => {
+    const raw = DATA.park[key(state.city, state.dist, c)];
+    if (!raw) return;
+    const s = clip(raw), color = css(PARK_VAR[i]);
+    const major = ["坡道平面", "坡道機械", "升降機械"].includes(c);
+    traces.push({
+      x: s.q, y: s[field], name: c, type: "scatter", mode: "lines+markers", visible: major ? true : "legendonly",
+      line: { color, width: 2 }, marker: { size: s.n.map(n => n < 5 ? 8 : 5), color: s.n.map(n => n < 5 ? css("--surface-1") : color), line: { color, width: 2 } },
+      customdata: s.n, hovertemplate: `${c}：<b>%{y:.0f}</b> 萬（%{customdata} 個）<extra></extra>`,
+    });
+  });
+  document.getElementById("t-park").textContent = `${state.city}${state.dist === "全市" ? "（全市）" : state.dist}・車位價格走勢`;
+  Plotly.react("c-park", traces, layoutBase({ ...partialShade(), xaxis: timeAxis(), yaxis: Object.assign(layoutBase().yaxis, { title: { text: "萬元/個" }, rangemode: "tozero" }) }), CFG);
+}
+
+function renderRank() {
+  const t = state.rankType, color = css(TYPE_VAR[t]);
+  const rows = DATA.districts[state.city].map(d => ({ d, r: DATA.recent.house[key(state.city, d, t)] }))
+    .filter(x => x.r && x.r.n >= 5).sort((a, b) => a.r.med - b.r.med);
+  const cityR = DATA.recent.house[key(state.city, "全市", t)];
+  document.getElementById("t-rank").textContent = `${state.city}各行政區比較・${t}`;
+  document.getElementById("rank-sub").textContent = `${DATA.recentLabel} 成交單價中位數（萬元/坪），少於 5 筆的行政區不列入。點長條可切換到該行政區。`;
+  const shapes = cityR ? [{ type: "line", x0: cityR.med, x1: cityR.med, y0: -0.5, y1: rows.length - 0.5, line: { color: css("--text-muted"), width: 1, dash: "dot" } }] : [];
+  const ann = cityR ? [{ x: cityR.med, y: rows.length - 0.5, yanchor: "bottom", text: `全市 ${fmt(cityR.med)}`, showarrow: false, font: { size: 11, color: css("--text-secondary") } }] : [];
+  Plotly.react("c-rank", [{
+    type: "bar", orientation: "h", y: rows.map(x => x.d), x: rows.map(x => x.r.med),
+    marker: { color: rows.map(x => x.d === state.dist ? color : hexA(color, 0.45)), line: { color: css("--surface-1"), width: 1 } },
+    text: rows.map(x => fmt(x.r.med)), textposition: "outside", cliponaxis: false,
+    textfont: { color: css("--text-secondary") },
+    customdata: rows.map(x => x.r.n), hovertemplate: "%{y}：<b>%{x:.1f}</b> 萬/坪（%{customdata} 筆）<extra></extra>",
+  }], layoutBase({ hovermode: "closest", margin: { l: 72, r: 48, t: 16, b: 36 }, shapes, annotations: ann,
+    xaxis: Object.assign(layoutBase().xaxis, { title: { text: "萬元/坪" }, showspikes: false }),
+    yaxis: Object.assign(layoutBase().yaxis, { automargin: true, gridcolor: "rgba(0,0,0,0)" }) }), CFG);
+  const el = document.getElementById("c-rank");
+  el.removeAllListeners && el.removeAllListeners("plotly_click");
+  el.on("plotly_click", ev => {
+    state.dist = ev.points[0].y; document.getElementById("dist").value = state.dist; render();
+    document.getElementById("c-house").scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+}
+
+function renderTable() {
+  const qs = new Set();
+  const get = {};
+  TYPES.forEach(t => { const s = DATA.house[key(state.city, state.dist, t)]; if (s) s.q.forEach((q, i) => { qs.add(q); get[t + q] = [s.med[i], s.n[i]]; }); });
+  const p = DATA.park[key(state.city, state.dist, "全部")];
+  if (p) p.q.forEach((q, i) => { qs.add(q); get["車位" + q] = [p.med[i], p.n[i]]; });
+  const cols = [...TYPES, "車位"];
+  const head = `<tr><th>交易季</th>${cols.map(c => `<th>${c}中位數</th><th>${c}筆數</th>`).join("")}</tr>`;
+  const body = [...qs].sort().reverse().map(q => `<tr><td>${q}</td>${cols.map(c => {
+    const v = get[c + q]; return `<td>${v ? fmt(v[0], c === "車位" ? 0 : 1) : "–"}</td><td>${v ? v[1] : "–"}</td>`;
+  }).join("")}</tr>`).join("");
+  document.getElementById("tbl").innerHTML = `<thead>${head}</thead><tbody>${body}</tbody>`;
+}
+
+function render() { renderTiles(); renderHouse(); renderPark(); renderRank(); renderTable(); }
+
+document.getElementById("meta").textContent =
+  `資料來源：內政部不動產成交案件實際資訊（實價登錄）・成交日期 ${DATA.quarters[0]}～${DATA.quarters[DATA.quarters.length - 1]}・資料更新至 ${DATA.lastSeason} 期`;
+document.getElementById("notes").innerHTML = DATA.notes.map(n => `<li>${n}</li>`).join("");
+fillSelectors();
+render();
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
+new MutationObserver(render).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+</script>
+</body>
+</html>

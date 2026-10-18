@@ -1,0 +1,63 @@
+name: Taipei-NewTaipei House Price Updater
+
+on:
+  schedule:
+    # 每週一、四 18:00 UTC（台灣週二、週五 02:00）檢查實價登錄是否公布新季別
+    - cron: '0 18 * * 1,4'
+  workflow_dispatch: # 可在 GitHub Actions 頁面手動執行
+  push:
+    branches: [main]
+    paths:
+      - 'houseprice/pipeline/**'
+      - '.github/workflows/houseprice.yml'
+
+concurrency:
+  group: houseprice
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: houseprice/pipeline/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r houseprice/pipeline/requirements.txt
+
+      # 原始季檔約 380 MB，不進 git，用快取保存；快取遺失時會自動重新下載全部季別
+      - name: Restore raw data cache
+        uses: actions/cache@v4
+        with:
+          path: houseprice/data/raw
+          key: lvr-raw-${{ github.run_id }}
+          restore-keys: lvr-raw-
+
+      - name: Download new quarters and rebuild if needed
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python houseprice/pipeline/run_all.py
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add houseprice/index.html "houseprice/雙北房價統計.xlsx" houseprice/last_season.txt
+          if git diff --staged --quiet; then
+            echo "No new data."
+          else
+            git commit -m "Update house price dashboard to $(cat houseprice/last_season.txt) [GitHub Action]"
+            git pull --rebase origin main
+            git push
+          fi

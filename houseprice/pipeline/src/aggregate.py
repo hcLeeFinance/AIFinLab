@@ -55,3 +55,14 @@ def recent_wide(detail, item_col, value_col, n_quarters=4):
     cnt = stats.pivot_table(index=["縣市", "行政區"], columns=item_col, values="筆數", aggfunc="sum").add_suffix("_筆數")
     wide = med.round(1).join(cnt.astype("Int64")).reset_index()
     return wide, label
+
+
+def aggregate_yearly(houses, parking):
+    """年度統計（直接用當年全部明細，不是季中位數再平均），供行政區比較與年化漲幅使用。"""
+    h = houses.assign(年=houses["交易日期"].dt.year)
+    hs = _with_city_total(h, ["型態", "年"], "單價萬坪")
+    p = parking.assign(年=parking["交易日期"].dt.year)
+    ps = pd.concat([_with_city_total(p, ["車位類別", "年"], "車位價萬"),
+                    _with_city_total(p.assign(車位類別="全部"), ["車位類別", "年"], "車位價萬")],
+                   ignore_index=True)
+    return hs, ps

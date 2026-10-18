@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from aggregate import recent_stats, recent_wide
+from aggregate import aggregate_yearly, recent_stats, recent_wide
 from clean import DISTRICTS
 
 NOTES = [
@@ -17,15 +17,16 @@ NOTES = [
     "極端值：各行政區 × 型態 × 年，超出四分位距 3 倍的成交剔除。",
     "車位價格取自車位明細，只計車位價格大於 0（有單獨標價）的車位，排除親友／特殊關係交易。單獨標價的比例從 2012 年約 25% 提高到近年約 70%，早期車位序列樣本較少、代表性較弱。",
     "單季成交少於 5 筆的點以空心圓標示，數值波動大，僅供參考。",
+    "行政區比較的年度數值是該年全部成交的中位數（不是季中位數再平均）。年化漲幅 =（終點年中位數 ÷ 起點年中位數）^(1 ÷ 年數) − 1，只反映房價變動，不含租金收益，也不代表個別物件的實際報酬。起點或終點年成交少於 5 筆時不計算。最新一季所在年度仍在補登，不列入完整年度。",
 ]
 
 
-def _series(stats, item_col):
+def _series(stats, item_col, time_col="季"):
     out = {}
     for (city, dist, item), g in stats.groupby(["縣市", "行政區", item_col]):
-        g = g.sort_values("季")
+        g = g.sort_values(time_col)
         out[f"{city}|{dist}|{item}"] = {
-            "q": g["季"].tolist(),
+            "q": [str(t) for t in g[time_col]],
             "med": g["中位數"].round(2).tolist(),
             "mean": g["平均數"].round(2).tolist(),
             "p25": g["P25"].round(2).tolist(),
@@ -44,8 +45,18 @@ def build_dashboard(houses, parking, house_stats, park_stats, last_season, out_p
     rh, label = recent_stats(houses, "型態", "單價萬坪")
     rp, _ = recent_stats(parking, "車位類別", "車位價萬")
     present = set(house_stats["縣市"] + "|" + house_stats["行政區"])
+    hy, py = aggregate_yearly(houses, parking)
+    quarters = sorted(house_stats["季"].unique())
+    # 第一個完整年度：最早有第一季資料的年份（2012 只有 8～12 月）。
+    # 最後完整年度：最新一季永遠還在補登，所以最新一季所在年度不算完整。
+    first_full = min(int(q[:4]) for q in quarters if q.endswith("Q1"))
+    last_full = int(quarters[-1][:4]) - 1
     data = {
-        "quarters": sorted(house_stats["季"].unique()),
+        "quarters": quarters,
+        "firstFullYear": first_full,
+        "lastFullYear": last_full,
+        "houseYear": _series(hy, "型態", "年"),
+        "parkYear": _series(py[py["車位類別"] == "全部"], "車位類別", "年"),
         "completeQuarter": sorted(house_stats["季"].unique())[-2],
         "districts": {c: [d for d in ds if f"{c}|{d}" in present] for c, ds in DISTRICTS.items()},
         "house": _series(house_stats, "型態"),

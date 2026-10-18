@@ -83,6 +83,7 @@ select, button {
 .muted { color: var(--text-muted); font-size: 12px; }
 .cmp-table td .dot { margin-right: 6px; vertical-align: middle; }
 .hint { color: var(--text-muted); font-size: 12px; margin-top: 6px; }
+@media (max-width: 640px) { .cmp-table .n { display: none; } .cmp-table th, .cmp-table td { padding: 4px 5px; white-space: normal; } }
 .grid2 { display: grid; grid-template-columns: 1fr; gap: 0 16px; }
 details { margin-top: 16px; }
 summary { cursor: pointer; color: var(--text-secondary); }
@@ -146,7 +147,7 @@ th { position: sticky; top: 0; background: var(--surface-1); color: var(--text-s
 
   <section class="card" id="cmp">
     <h2>行政區比較</h2>
-    <div class="sub">最多選 4 個行政區（臺北、新北可混選），比較單價走勢與指定期間的年化漲幅。</div>
+    <div class="sub">最多選 4 個行政區（臺北、新北可混選），比較單價走勢與指定期間的年化報酬率。</div>
     <div class="cmp-controls">
       <label>加入行政區
         <span style="display:flex;gap:6px"><select id="cmp-pick"></select><button id="cmp-add">加入</button></span>
@@ -337,7 +338,7 @@ function renderRank() {
   const rows = DATA.districts[state.city].map(d => ({ d, r: DATA.recent.house[key(state.city, d, t)] }))
     .filter(x => x.r && x.r.n >= 5).sort((a, b) => a.r.med - b.r.med);
   const cityR = DATA.recent.house[key(state.city, "全市", t)];
-  document.getElementById("t-rank").textContent = `${state.city}各行政區比較・${t}`;
+  document.getElementById("t-rank").textContent = `${state.city}各行政區排名・${t}`;
   document.getElementById("rank-sub").textContent = `${DATA.recentLabel} 成交單價中位數（萬元/坪），少於 5 筆的行政區不列入。點長條可切換到該行政區。`;
   const shapes = cityR ? [{ type: "line", x0: cityR.med, x1: cityR.med, y0: -0.5, y1: rows.length - 0.5, line: { color: css("--text-muted"), width: 1, dash: "dot" } }] : [];
   const ann = cityR ? [{ x: cityR.med, y: rows.length - 0.5, yanchor: "bottom", text: `全市 ${fmt(cityR.med)}`, showarrow: false, font: { size: 11, color: css("--text-secondary") } }] : [];
@@ -520,16 +521,16 @@ function renderCompare() {
     || '<span class="muted">尚未選擇行政區，請從上方加入。</span>';
 
   const pct = v => (v == null ? "–" : `${v >= 0 ? "+" : ""}${fmt(v)}%`);
-  const cell = v => (v ? `${fmt(v.med, cmp.type === "車位" ? 0 : 1)} <span class="muted">（${v.n} 筆）</span>` : "–");
+  const cell = v => (v ? `${fmt(v.med, cmp.type === "車位" ? 0 : 1)} <span class="muted n">（${v.n} 筆）</span>` : "–");
   document.getElementById("cmp-table").innerHTML =
-    `<thead><tr><th>行政區</th><th>${cmp.start} 年中位數</th><th>${cmp.end} 年中位數</th><th>${yrs} 年總漲幅</th><th>年化漲幅</th></tr></thead><tbody>` +
+    `<thead><tr><th>行政區</th><th>${cmp.start} 年中位數</th><th>${cmp.end} 年中位數</th><th>${yrs} 年總漲幅</th><th>年化報酬率<br><span class="muted">（僅房價）</span></th></tr></thead><tbody>` +
     rows.map(r => `<tr><td><span class="dot" style="background:${r.color}"></span>${cmpLabel(r.it)}</td><td>${cell(r.b)}</td><td>${cell(r.e)}</td>` +
       (r.ok ? `<td>${pct(r.total)}</td><td><b>${pct(r.cagr)}</b></td>`
             : `<td colspan="2" class="muted">樣本不足（起點或終點年少於 5 筆）</td>`) + "</tr>").join("") + "</tbody>";
 
   const dropped = rows.filter(r => cmp.mode === "index" && !r.baseOk && !r.it.empty).map(r => cmpLabel(r.it));
   document.getElementById("cmp-hint").textContent =
-    `單位：${unitWord}，年度數值為當年全部成交的中位數。年化漲幅只反映房價變動，不含租金收益。` +
+    `單位：${unitWord}，年度數值為當年全部成交的中位數。年化報酬率只計房價變動，不含租金收益。` +
     `${DATA.lastFullYear + 1} 年仍在補登，以空心點標示，不列入期間計算。` +
     (dropped.length ? `指數模式下，${dropped.join("、")} 在 ${cmp.start} 年成交少於 5 筆，無法用同一基期比較，未畫出。` : "");
 }

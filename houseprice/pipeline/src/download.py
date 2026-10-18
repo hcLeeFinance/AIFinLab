@@ -43,8 +43,12 @@ def download_all(raw_dir: Path, last_year=None):
             print(f"  {season} 尚未公告，停止")
             break
         names = {n.lower(): n for n in z.namelist()}
-        # 101S1~101S3 是有效 zip 但幾乎沒有雙北資料，照常標記完成
+        # 101S1~101S3 是有效 zip 但幾乎沒有雙北資料，照常標記完成；之後的季別若沒有雙北檔案，
+        # 視為尚未公告、不標記完成（否則真正公告時會因已有 .done 而被跳過）
         found = [k for k in KEEP if k in names]
+        if not found and season not in ("101S1", "101S2", "101S3"):
+            print(f"  {season} 無雙北資料，視為尚未公告，停止")
+            break
         out.mkdir(exist_ok=True)
         for k in found:
             (out / k).write_bytes(z.read(names[k]))

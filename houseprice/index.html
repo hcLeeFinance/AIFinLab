@@ -83,7 +83,8 @@ select, button {
 .muted { color: var(--text-muted); font-size: 12px; }
 .cmp-table td .dot { margin-right: 6px; vertical-align: middle; }
 .hint { color: var(--text-muted); font-size: 12px; margin-top: 6px; }
-@media (max-width: 640px) { .cmp-table .n { display: none; } .cmp-table th, .cmp-table td { padding: 4px 5px; white-space: normal; } }
+.cmp-table .um { display: none; }
+@media (max-width: 640px) { .cmp-table .n, .cmp-table .u { display: none; } .cmp-table .um { display: inline; } .cmp-table th, .cmp-table td { padding: 4px 5px; white-space: normal; } }
 .grid2 { display: grid; grid-template-columns: 1fr; gap: 0 16px; }
 details { margin-top: 16px; }
 summary { cursor: pointer; color: var(--text-secondary); }
@@ -509,10 +510,13 @@ function renderCompare() {
   const shapes = cmp.mode === "index" && !mixedUnits
     ? [{ type: "line", xref: "paper", x0: 0, x1: 1, y0: 100, y1: 100, line: { color: css("--text-muted"), width: 1, dash: "dot" } }]
     : [];
+  const narrow = document.getElementById("c-cmp").clientWidth < 700;
   const annotations = mixedUnits ? [{
     xref: "paper", yref: "paper", x: 0.5, y: 0.5, showarrow: false, align: "center",
-    text: "車位（萬元/個）和房屋（萬元/坪）單位不同，無法放在同一張單價圖比較。<br>請切換到上方的「指數（起點年＝100）」比較漲幅。",
-    font: { size: 14, color: css("--text-secondary") },
+    text: narrow
+      ? "車位（萬元/個）和房屋（萬元/坪）<br>單位不同，無法放在同一張單價圖。<br>請切換到上方的<br>「指數（起點年＝100）」比較漲幅。"
+      : "車位（萬元/個）和房屋（萬元/坪）單位不同，無法放在同一張單價圖比較。<br>請切換到上方的「指數（起點年＝100）」比較漲幅。",
+    font: { size: narrow ? 12 : 14, color: css("--text-secondary") },
   }] : [];
   Plotly.react("c-cmp", traces, layoutBase({
     shapes, annotations,
@@ -535,8 +539,8 @@ function renderCompare() {
   const pct = v => (v == null ? "–" : `${v >= 0 ? "+" : ""}${fmt(v)}%`);
   const cell = (it, v) => (v ? `${fmt(v.med, isPark(it) ? 0 : 1)} <span class="muted n">（${v.n} 筆）</span>` : "–");
   document.getElementById("cmp-table").innerHTML =
-    `<thead><tr><th>比較項目</th><th>單位</th><th>${cmp.start} 年中位數</th><th>${cmp.end} 年中位數</th><th>${yrs} 年總漲幅</th><th>年化報酬率<br><span class="muted">（僅房價）</span></th></tr></thead><tbody>` +
-    rows.map(r => `<tr><td><span class="dot" style="background:${r.color}"></span>${cmpLabel(r.it)}</td><td class="muted">${unitOf(r.it)}</td><td>${cell(r.it, r.b)}</td><td>${cell(r.it, r.e)}</td>` +
+    `<thead><tr><th>比較項目</th><th class="u">單位</th><th>${cmp.start} 年中位數</th><th>${cmp.end} 年中位數</th><th>${yrs} 年總漲幅</th><th>年化報酬率<br><span class="muted">（僅房價）</span></th></tr></thead><tbody>` +
+    rows.map(r => `<tr><td><span class="dot" style="background:${r.color}"></span>${cmpLabel(r.it)}<span class="muted um"><br>${unitOf(r.it)}</span></td><td class="muted u">${unitOf(r.it)}</td><td>${cell(r.it, r.b)}</td><td>${cell(r.it, r.e)}</td>` +
       (r.ok ? `<td>${pct(r.total)}</td><td><b>${pct(r.cagr)}</b></td>`
             : `<td colspan="2" class="muted">樣本不足（起點或終點年少於 5 筆）</td>`) + "</tr>").join("") + "</tbody>";
 

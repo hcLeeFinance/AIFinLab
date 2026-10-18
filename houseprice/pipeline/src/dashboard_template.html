@@ -147,12 +147,11 @@ th { position: sticky; top: 0; background: var(--surface-1); color: var(--text-s
 
   <section class="card" id="cmp">
     <h2>行政區比較</h2>
-    <div class="sub">最多選 4 個行政區（臺北、新北可混選），比較單價走勢與指定期間的年化報酬率。</div>
+    <div class="sub">最多 4 條線，每條線各自選行政區與型態（臺北、新北可混選，也可以同一區比較不同型態），比較單價走勢與指定期間的年化報酬率。</div>
     <div class="cmp-controls">
-      <label>加入行政區
-        <span style="display:flex;gap:6px"><select id="cmp-pick"></select><button id="cmp-add">加入</button></span>
+      <label>加入比較
+        <span style="display:flex;gap:6px;flex-wrap:wrap"><select id="cmp-pick"></select><select id="cmp-pick-type"></select><button id="cmp-add">加入</button></span>
       </label>
-      <label>型態<span class="seg" id="cmp-type"></span></label>
       <label>起點年<select id="cmp-start"></select></label>
       <label>終點年<select id="cmp-end"></select></label>
       <label>時間單位<span class="seg" id="cmp-unit"><button data-v="year" aria-pressed="true">年</button><button data-v="quarter" aria-pressed="false">季</button></span></label>
@@ -374,18 +373,20 @@ function renderTable() {
 }
 
 // ---------- 行政區比較 ----------
-// 顏色在加入時指定槽位、之後固定（移除別的區不會換色）
+// 每條線 = 行政區 × 型態；顏色在加入時指定槽位、之後固定（移除別條線不會換色）
 const CMP_SLOTS = ["--s1", "--s2", "--s3", "--s4"];
 const CMP_TYPES = ["大樓", "華廈", "公寓", "車位"];
 const cmp = {
-  items: [{ city: "臺北市", dist: "松山區", slot: 0 }, { city: "新北市", dist: "三重區", slot: 1 }],
-  type: "大樓", unit: "year", mode: "price", start: DATA.firstFullYear, end: DATA.lastFullYear,
+  items: [{ city: "臺北市", dist: "松山區", type: "大樓", slot: 0 }, { city: "新北市", dist: "三重區", type: "大樓", slot: 1 }],
+  unit: "year", mode: "price", start: DATA.firstFullYear, end: DATA.lastFullYear,
 };
-const cmpLabel = it => it.dist === "全市" ? `${it.city}（全市）` : `${it.city.slice(0, 2)}・${it.dist}`;
+const isPark = it => it.type === "車位";
+const unitOf = it => (isPark(it) ? "萬元/個" : "萬元/坪");
+const cmpLabel = it => `${it.dist === "全市" ? it.city + "（全市）" : it.city.slice(0, 2) + "・" + it.dist}・${it.type}`;
 function cmpSeries(it, unit) {
-  const k = key(it.city, it.dist, cmp.type === "車位" ? "全部" : cmp.type);
-  if (unit === "year") return (cmp.type === "車位" ? DATA.parkYear : DATA.houseYear)[k];
-  return (cmp.type === "車位" ? DATA.park : DATA.house)[k];
+  const k = key(it.city, it.dist, isPark(it) ? "全部" : it.type);
+  if (unit === "year") return (isPark(it) ? DATA.parkYear : DATA.houseYear)[k];
+  return (isPark(it) ? DATA.park : DATA.house)[k];
 }
 function yearVal(it, y) {
   const s = cmpSeries(it, "year");
@@ -402,17 +403,20 @@ function fillYearSelects() {
     years.filter(y => y > cmp.start).map(y => `<option ${y === cmp.end ? "selected" : ""}>${y}</option>`).join("");
 }
 function setupCompare() {
-  const pick = document.getElementById("cmp-pick");
+  const pick = document.getElementById("cmp-pick"), pickType = document.getElementById("cmp-pick-type");
   pick.innerHTML = Object.entries(DATA.districts).map(([c, ds]) =>
     `<optgroup label="${c}">${["全市", ...ds].map(d =>
       `<option value="${c}|${d}">${d === "全市" ? c + "（全市）" : d}</option>`).join("")}</optgroup>`).join("");
   pick.value = "臺北市|大安區";
+  pickType.innerHTML = CMP_TYPES.map(t => `<option>${t}</option>`).join("");
+  pickType.value = "大樓";  // 之後保留使用者上次選的型態
   document.getElementById("cmp-add").onclick = () => {
     if (!pick.value) return;
     const [city, dist] = pick.value.split("|");
-    if (cmp.items.length >= 4 || cmp.items.some(x => x.city === city && x.dist === dist)) return;
+    const type = pickType.value;
+    if (cmp.items.length >= 4 || cmp.items.some(x => x.city === city && x.dist === dist && x.type === type)) return;
     const used = new Set(cmp.items.map(x => x.slot));
-    cmp.items.push({ city, dist, slot: [0, 1, 2, 3].find(i => !used.has(i)) });
+    cmp.items.push({ city, dist, type, slot: [0, 1, 2, 3].find(i => !used.has(i)) });
     renderCompare();
   };
   document.getElementById("cmp-chips").onclick = e => {
@@ -421,9 +425,7 @@ function setupCompare() {
     cmp.items.splice(Number(b.dataset.i), 1);
     renderCompare();
   };
-  document.getElementById("cmp-type").innerHTML =
-    CMP_TYPES.map(t => `<button data-v="${t}" aria-pressed="${t === cmp.type}">${t}</button>`).join("");
-  for (const [id, prop] of [["cmp-type", "type"], ["cmp-unit", "unit"], ["cmp-mode", "mode"]]) {
+  for (const [id, prop] of [["cmp-unit", "unit"], ["cmp-mode", "mode"]]) {
     const seg = document.getElementById(id);
     seg.onclick = e => {
       const b = e.target.closest("button");
@@ -444,7 +446,10 @@ function setupCompare() {
 }
 
 function renderCompare() {
-  const unitWord = cmp.type === "車位" ? "萬元/個" : "萬元/坪";
+  // 車位（萬元/個）與房屋（萬元/坪）單位不同：單價模式不能共用一條 y 軸，改提示切換到指數
+  const units = [...new Set(cmp.items.map(unitOf))];
+  const mixedUnits = units.length > 1 && cmp.mode === "price";
+  const axisUnit = units.length === 1 ? units[0] : "";
   // 終點選最後完整年度時，順便畫出補登中的最新年度／季（空心點），但不列入期間計算
   const showPartial = cmp.end === DATA.lastFullYear;
   const isPartial = q => Number(q.slice(0, 4)) > DATA.lastFullYear;
@@ -454,7 +459,7 @@ function renderCompare() {
   };
   const add = document.getElementById("cmp-add");
   add.disabled = cmp.items.length >= 4;
-  add.title = add.disabled ? "最多 4 個行政區" : "";
+  add.title = add.disabled ? "最多 4 條線" : "";
 
   const yrs = cmp.end - cmp.start;
   const traces = [], rows = [];
@@ -468,12 +473,13 @@ function renderCompare() {
       total: ok ? (e.med / b.med - 1) * 100 : null,
       cagr: ok ? (Math.pow(e.med / b.med, 1 / yrs) - 1) * 100 : null });
     it.empty = !s;
-    // 指數模式一律以起點年的「年度」中位數為基期（季模式也一樣），基期樣本不足就不畫
-    if (!s || (cmp.mode === "index" && !baseOk)) return;
+    // 指數模式：每條線以自己起點年的「年度」中位數為基期（季模式也一樣），基期樣本不足就不畫
+    if (!s || mixedUnits || (cmp.mode === "index" && !baseOk)) return;
     const idxs = s.q.map((q, i) => (inRange(q) ? i : -1)).filter(i => i >= 0);
     const xs = idxs.map(i => s.q[i]);
     const ns = idxs.map(i => s.n[i]);
     const hollow = xs.map((q, j) => ns[j] < 5 || isPartial(q));
+    const u = unitOf(it);
     traces.push({
       x: xs,
       y: idxs.map(i => (cmp.mode === "index" ? s.med[i] / b.med * 100 : s.med[i])),
@@ -482,8 +488,8 @@ function renderCompare() {
       marker: { size: hollow.map(h => (h ? 8 : 6)), color: hollow.map(h => (h ? css("--surface-1") : color)), line: { color, width: 2 } },
       customdata: xs.map((q, j) => [ns[j], s.med[idxs[j]], isPartial(q) ? "（補登中）" : ""]),
       hovertemplate: cmp.mode === "index"
-        ? `${cmpLabel(it)}：<b>%{y:.1f}</b>（%{customdata[1]:.1f} ${unitWord}，%{customdata[0]} 筆）%{customdata[2]}<extra></extra>`
-        : `${cmpLabel(it)}：<b>%{y:.1f}</b> ${unitWord}（%{customdata[0]} 筆）%{customdata[2]}<extra></extra>`,
+        ? `${cmpLabel(it)}：<b>%{y:.1f}</b>（%{customdata[1]:.1f} ${u}，%{customdata[0]} 筆）%{customdata[2]}<extra></extra>`
+        : `${cmpLabel(it)}：<b>%{y:.1f}</b> ${u}（%{customdata[0]} 筆）%{customdata[2]}<extra></extra>`,
     });
   });
 
@@ -500,39 +506,45 @@ function renderCompare() {
   // 窄螢幕每隔幾年標一次，從最後一年往回數，確保最新年份一定有標籤
   const step = document.getElementById("c-cmp").clientWidth < 700 ? Math.ceil(years.length / 6) : 1;
   const ticks = years.filter((q, i) => (years.length - 1 - i) % step === 0);
-  const shapes = cmp.mode === "index"
+  const shapes = cmp.mode === "index" && !mixedUnits
     ? [{ type: "line", xref: "paper", x0: 0, x1: 1, y0: 100, y1: 100, line: { color: css("--text-muted"), width: 1, dash: "dot" } }]
     : [];
+  const annotations = mixedUnits ? [{
+    xref: "paper", yref: "paper", x: 0.5, y: 0.5, showarrow: false, align: "center",
+    text: "車位（萬元/個）和房屋（萬元/坪）單位不同，無法放在同一張單價圖比較。<br>請切換到上方的「指數（起點年＝100）」比較漲幅。",
+    font: { size: 14, color: css("--text-secondary") },
+  }] : [];
   Plotly.react("c-cmp", traces, layoutBase({
-    shapes,
+    shapes, annotations,
     xaxis: Object.assign(layoutBase().xaxis, {
       type: "category", categoryorder: "array", categoryarray: cats, range: [-0.5, cats.length - 0.5],
       tickmode: "array", tickvals: ticks, ticktext: ticks.map(q => q.slice(0, 4)), tickangle: 0,
     }),
     yaxis: Object.assign(layoutBase().yaxis, {
-      title: { text: cmp.mode === "index" ? `指數（${cmp.start} 年＝100）` : unitWord },
+      title: { text: cmp.mode === "index" ? `指數（${cmp.start} 年＝100）` : axisUnit },
       rangemode: cmp.mode === "index" ? "normal" : "tozero",
+      showticklabels: !mixedUnits,
     }),
   }), CFG);
 
   document.getElementById("cmp-chips").innerHTML = cmp.items.map((it, i) =>
     `<span class="chip"><span class="dot" style="background:var(${CMP_SLOTS[it.slot]})"></span>${cmpLabel(it)}` +
     `${it.empty ? ' <span class="muted">無資料</span>' : ""}<button data-i="${i}" aria-label="移除 ${cmpLabel(it)}">×</button></span>`).join("")
-    || '<span class="muted">尚未選擇行政區，請從上方加入。</span>';
+    || '<span class="muted">尚未選擇，請從上方加入。</span>';
 
   const pct = v => (v == null ? "–" : `${v >= 0 ? "+" : ""}${fmt(v)}%`);
-  const cell = v => (v ? `${fmt(v.med, cmp.type === "車位" ? 0 : 1)} <span class="muted n">（${v.n} 筆）</span>` : "–");
+  const cell = (it, v) => (v ? `${fmt(v.med, isPark(it) ? 0 : 1)} <span class="muted n">（${v.n} 筆）</span>` : "–");
   document.getElementById("cmp-table").innerHTML =
-    `<thead><tr><th>行政區</th><th>${cmp.start} 年中位數</th><th>${cmp.end} 年中位數</th><th>${yrs} 年總漲幅</th><th>年化報酬率<br><span class="muted">（僅房價）</span></th></tr></thead><tbody>` +
-    rows.map(r => `<tr><td><span class="dot" style="background:${r.color}"></span>${cmpLabel(r.it)}</td><td>${cell(r.b)}</td><td>${cell(r.e)}</td>` +
+    `<thead><tr><th>比較項目</th><th>單位</th><th>${cmp.start} 年中位數</th><th>${cmp.end} 年中位數</th><th>${yrs} 年總漲幅</th><th>年化報酬率<br><span class="muted">（僅房價）</span></th></tr></thead><tbody>` +
+    rows.map(r => `<tr><td><span class="dot" style="background:${r.color}"></span>${cmpLabel(r.it)}</td><td class="muted">${unitOf(r.it)}</td><td>${cell(r.it, r.b)}</td><td>${cell(r.it, r.e)}</td>` +
       (r.ok ? `<td>${pct(r.total)}</td><td><b>${pct(r.cagr)}</b></td>`
             : `<td colspan="2" class="muted">樣本不足（起點或終點年少於 5 筆）</td>`) + "</tr>").join("") + "</tbody>";
 
   const dropped = rows.filter(r => cmp.mode === "index" && !r.baseOk && !r.it.empty).map(r => cmpLabel(r.it));
   document.getElementById("cmp-hint").textContent =
-    `單位：${unitWord}，年度數值為當年全部成交的中位數。年化報酬率只計房價變動，不含租金收益。` +
+    "年度數值為當年全部成交的中位數。年化報酬率只計房價變動，不含租金收益。" +
     `${DATA.lastFullYear + 1} 年仍在補登，以空心點標示，不列入期間計算。` +
-    (dropped.length ? `指數模式下，${dropped.join("、")} 在 ${cmp.start} 年成交少於 5 筆，無法用同一基期比較，未畫出。` : "");
+    (dropped.length ? `指數模式下，${dropped.join("、")} 在 ${cmp.start} 年成交少於 5 筆，沒有可靠的基期，未畫出。` : "");
 }
 
 function render() { renderTiles(); renderHouse(); renderPark(); renderRank(); renderTable(); renderCompare(); }

@@ -40,6 +40,18 @@ def main():
                      key=lambda s: (int(s[:-2]), int(s[-1])))
     last_season = seasons[-1]
     published = marker.read_text().strip() if marker.exists() else ""
+
+    # 防呆：下載中途若遇到錯誤頁（維護、限流、封鎖）會被當成「尚未公告」而提早停止，
+    # 此時不可用殘缺資料重算並覆蓋已發布的網站
+    key = lambda s: (int(s[:-2]), int(s[-1]))  # noqa: E731
+    expected = [f"{y}S{q}" for y in range(101, key(last_season)[0] + 1) for q in range(1, 5)]
+    expected = expected[:expected.index(last_season) + 1]
+    missing = sorted(set(expected) - set(seasons), key=key)
+    if missing:
+        sys.exit(f"錯誤：季檔不連續，缺少 {', '.join(missing)}，停止更新")
+    if published and key(last_season) < key(published):
+        sys.exit(f"錯誤：最新季別 {last_season} 早於已發布的 {published}，下載可能中斷，停止更新")
+
     if last_season == published and not args.force:
         print(f"沒有新的季別（目前 {last_season}），不需更新")
         return

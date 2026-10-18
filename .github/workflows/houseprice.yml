@@ -44,10 +44,11 @@ jobs:
           key: lvr-raw-${{ github.run_id }}
           restore-keys: lvr-raw-
 
+      # 排程只在有新季別時重算；程式碼有修改（push）時強制重算，讓修改立即反映到網站
       - name: Download new quarters and rebuild if needed
         env:
           PYTHONIOENCODING: utf-8
-        run: python houseprice/pipeline/run_all.py
+        run: python houseprice/pipeline/run_all.py ${{ github.event_name == 'push' && '--force' || '' }}
 
       - name: Commit and push changes
         run: |

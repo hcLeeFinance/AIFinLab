@@ -2,13 +2,22 @@ name: Automated Morning Report Generator (Option B)
 
 on:
   schedule:
-    # 00:00 UTC is 08:00 AM Taiwan Time (GMT+8), Monday through Friday
-    - cron: '0 0 * * 1-5'
+    # 21:37 UTC Sun-Thu = 05:37 Taiwan time Mon-Fri, after the US close (20:00 UTC
+    # summer / 21:00 UTC winter). GitHub's scheduler often starts hours late, so an
+    # early slot keeps the report ahead of the 09:00 Taiwan open. Off the hour to
+    # avoid the top-of-hour queue. Report dates use Taiwan time (see the script).
+    - cron: '37 21 * * 0-4'
   workflow_dispatch: # Allows manual one-click trigger from GitHub UI
+
+# Never run two report jobs at once (scheduled + manual on the same day).
+concurrency:
+  group: morning-report
+  cancel-in-progress: false
 
 jobs:
   build-and-publish:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write
 
@@ -30,4 +39,16 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add morning/
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-generate Daily Morning Report [GitHub Action]" && git push)
+          if git diff --staged --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git commit -m "Auto-generate Daily Morning Report [GitHub Action]"
+          # Other writers (house-price bot, local git publish) may have pushed meanwhile.
+          for i in 1 2 3; do
+            git pull --rebase origin main && git push && exit 0
+            echo "Push attempt $i failed; retrying..."
+            git rebase --abort 2>/dev/null || true
+            sleep 10
+          done
+          exit 1

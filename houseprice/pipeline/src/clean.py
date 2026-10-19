@@ -104,11 +104,12 @@ def clean_houses(main, park, parking):
     funnel.append(("排除特殊交易備註", len(df)))
 
     # 預售屋交屋過戶在 2017 年前多半沒有備註，改用屋齡一致排除：完工未滿 1 年（含交易日早於完工、
-    # 即用簽約日登錄的預售案）一律不計，序列定義為中古屋
+    # 即用簽約日登錄的預售案）一律不計，序列定義為中古屋。完工年月缺漏的交易無法判斷屋齡，
+    # 且占比逐年下降（2012 年約 9%、近年約 3%），保留會讓樣本組成隨時間漂移，一併排除
     built = _roc_date(df["建築完成年月"].fillna("").str.strip().str.ljust(7, "0").str[:5] + "01")
     age = (df["交易日期"] - built).dt.days / 365.25
-    df = df[~(age < 1)]
-    funnel.append(("排除屋齡未滿 1 年（新成屋、預售交屋）", len(df)))
+    df = df[age >= 1]
+    funnel.append(("排除屋齡未滿 1 年或不明（新成屋、預售交屋）", len(df)))
 
     total = _num(df["總價元"])
     area = _num(df["建物移轉總面積平方公尺"])
@@ -116,7 +117,8 @@ def clean_houses(main, park, parking):
     p_area = _num(df["車位移轉總面積平方公尺"]).fillna(0)
     has_park = df["交易標的"].str.endswith("車位") | df["車位類別"].notna()
     bundled = has_park & (p_price <= 0)
-    # 車位價格併入總價：用同區同類別同年的車位中位價估算後扣除；車位面積沒填則無法算淨面積
+    # 車位價格併入總價：用同區同類別同年的車位中位價估算後扣除。
+    # 不論車位單獨標價或併入總價，車位面積沒填（0）就無法扣出淨面積，單價會被低估，一律不計
     est = df["編號"].map(_estimate_bundled(df[bundled], park, parking)) * 1e4
     df["車位價來源"] = np.select([bundled, has_park], ["估算", "單獨標價"], "無車位")
     park_price = np.where(bundled, est, np.where(has_park, p_price, 0))
@@ -124,7 +126,7 @@ def clean_houses(main, park, parking):
     df["淨總價萬"] = (total - park_price) / 1e4
     df["淨坪數"] = net_area / PING
     df["單價萬坪"] = df["淨總價萬"] / df["淨坪數"]
-    ok = ~bundled | ((p_area > 0) & est.notna())
+    ok = (~has_park | (p_area > 0)) & (~bundled | est.notna())
     df = df[ok & (df["淨坪數"] >= 3) & (df["淨總價萬"] > 0)]
     funnel.append(("可拆出車位價、面積合理", len(df)))
 
@@ -153,11 +155,12 @@ def _latest_park(park):
 
 
 def _estimate_bundled(bundled, park, parking):
-    """逐一車位估價（車位明細每列一個車位）：同縣市行政區類別年份中位數（≥5 筆），不足則用全市同類別同年。"""
+    """逐一車位估價（車位明細每列一個車位）：同縣市行政區類別年份中位數（≥5 筆），不足則用全市同類別同年（也要 ≥5 筆）。"""
     yr = parking["交易日期"].dt.year
     m1 = parking.groupby(["縣市", "行政區", "車位類別", yr])["車位價萬"].agg(["median", "size"])
     m1 = m1.loc[m1["size"] >= 5, "median"]
-    m2 = parking.groupby(["縣市", "車位類別", yr])["車位價萬"].median()
+    m2 = parking.groupby(["縣市", "車位類別", yr])["車位價萬"].agg(["median", "size"])
+    m2 = m2.loc[m2["size"] >= 5, "median"]
     pk = _latest_park(park)
     info = bundled.set_index("編號")[["縣市", "行政區"]].assign(年=bundled["交易日期"].dt.year.values)
     pk = pk[pk["編號"].isin(info.index)].join(info, on="編號")

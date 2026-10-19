@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>現值與未來值計算器（含現金流）</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
   <style>
     body { font-family: Arial, sans-serif; max-width: 900px; margin: auto; }
     label { display: block; margin-top: 10px; }
@@ -20,6 +20,8 @@
 </head>
 <body>
 
+<p><a href="../index.html" style="color:#0969da; text-decoration:none; font-weight:bold;">← 回首頁</a></p>
+
 <h2>現值（PV）與未來值（FV）計算器（含不同期現金流）</h2>
 
 <div class="formula">
@@ -28,7 +30,8 @@
   第 i 年期末餘額：B<sub>i</sub> = B<sub>i-1</sub> × (1 + r) + CF<sub>i</sub><br><br>
   若現金流在<strong>期初</strong>（年初）發生：<br>
   第 i 年期末餘額：B<sub>i</sub> = (B<sub>i-1</sub> + CF<sub>i</sub>) × (1 + r)<br><br>
-  其中 B<sub>0</sub> = PV，最後 FV = B<sub>n</sub>
+  其中 B<sub>0</sub> = PV，最後 FV = B<sub>n</sub><br><br>
+  所有現金流（含 PV）折算回第 0 年的總現值：PV<sub>total</sub> = FV ÷ (1 + r)<sup>n</sup>
 </div>
 
 <label>現值 PV（第 0 年當下）：</label>
@@ -97,6 +100,7 @@ function removeRow(btn) {
 function getCashflows(years) {
   // cf[i] = 第 i 年的現金流（1..years），cf[0] 不用
   const cf = new Array(years + 1).fill(0);
+  cf.ignored = 0; // 年份超出 1 ~ n 而未計入的筆數
 
   const yearInputs = document.querySelectorAll(".cfYear");
   const amtInputs = document.querySelectorAll(".cfAmount");
@@ -106,7 +110,7 @@ function getCashflows(years) {
     const a = parseFloat(amtInputs[k].value);
 
     if (!Number.isFinite(y) || !Number.isFinite(a)) continue;
-    if (y < 1 || y > years) continue;
+    if (y < 1 || y > years) { if (a !== 0) cf.ignored++; continue; }
 
     cf[y] += a; // 同年多筆會自動加總
   }
@@ -141,9 +145,14 @@ function calculate() {
   }
 
   const finalFV = balances[years];
+  const totalPV = finalFV / Math.pow(1 + rate, years);
 
-  document.getElementById("result").innerText =
-    `未來值 FV（第 ${years} 年期末）= ${finalFV.toFixed(2)}`;
+  let msg = `未來值 FV（第 ${years} 年期末）= ${finalFV.toFixed(2)}
+` +
+    `全部現金流折算現值（第 0 年）= ${totalPV.toFixed(2)}`;
+  if (cf.ignored > 0) msg += `
+⚠ 有 ${cf.ignored} 筆現金流的年份不在 1 ~ ${years} 之間，未列入計算。`;
+  document.getElementById("result").innerText = msg;
 
   // 繪圖：第 0~n 年
   const labels = [];

@@ -36,8 +36,10 @@ def main():
     if not args.no_download:
         print("1/4 下載季檔")
         download_all(raw)
-    seasons = sorted((p.name for p in raw.iterdir() if (p / ".done").exists()),
+    seasons = sorted((p.name for p in raw.iterdir() if (p / ".done").exists()) if raw.exists() else [],
                      key=lambda s: (int(s[:-2]), int(s[-1])))
+    if not seasons:
+        sys.exit(f"錯誤：{raw} 沒有任何已完成下載的季檔，請先不加 --no-download 執行一次")
     last_season = seasons[-1]
     published = marker.read_text().strip() if marker.exists() else ""
 

@@ -4,6 +4,7 @@ import json
 import datetime
 import urllib.request
 import concurrent.futures
+from zoneinfo import ZoneInfo
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 AIFINLAB_DIR = os.path.dirname(CURRENT_DIR)
@@ -22,6 +23,10 @@ INTRADAY_KEYS = ["dji", "spx", "ixic", "sox"]
 # Below this success ratio, abort instead of publishing a mostly-empty report.
 MIN_QUALITY_RATIO = 0.5
 
+# The GitHub runner clock is UTC; report dates follow Taiwan time.
+TAIPEI_TZ = ZoneInfo("Asia/Taipei")
+NEW_YORK_TZ = ZoneInfo("America/New_York")
+
 
 def fetch_ticker_data(symbol):
     """
@@ -39,6 +44,7 @@ def fetch_ticker_data(symbol):
             previous_close = meta.get('chartPreviousClose') or meta.get('previousClose')
             day_high = meta.get('regularMarketDayHigh')
             day_low = meta.get('regularMarketDayLow')
+            market_time = meta.get('regularMarketTime')
 
             # Fallback if 5m range=1d does not return previous close
             if previous_close is None:
@@ -64,7 +70,8 @@ def fetch_ticker_data(symbol):
                     "raw_pct": change_pct,
                     "prev_close": previous_close,
                     "high": f"{day_high:,.2f}" if day_high else "--",
-                    "low": f"{day_low:,.2f}" if day_low else "--"
+                    "low": f"{day_low:,.2f}" if day_low else "--",
+                    "market_time": market_time
                 }
     except Exception as e:
         print(f"[WARN] Failed to fetch {symbol}: {e}")
@@ -77,7 +84,8 @@ def fetch_ticker_data(symbol):
         "raw_pct": 0.0,
         "prev_close": 0.0,
         "high": "--",
-        "low": "--"
+        "low": "--",
+        "market_time": None
     }
 
 
@@ -225,7 +233,8 @@ def update_index_embedded_reports(reports):
 
 
 def build_cloud_morning_report():
-    today_str = datetime.datetime.now().strftime("%Y-%m-%d")
+    now_taipei = datetime.datetime.now(TAIPEI_TZ)
+    today_str = now_taipei.strftime("%Y-%m-%d")
 
     ticker_data, intraday_data = fetch_all_market_data()
 
@@ -246,6 +255,19 @@ def build_cloud_morning_report():
                 ⚠️ 資料擷取異常：{len(failed_symbols)}/{total} 檔行情資料抓取失敗（{', '.join(failed_symbols)}），相關欄位顯示為「資料擷取中」，請人工核對後再參考。
             </div>'''
 
+    # US holiday check: if the DJI quote is older than the last US weekday before
+    # today (Taiwan date), the US market was closed and the numbers are carried over.
+    us_market_note_html = ""
+    if dji.get('market_time'):
+        us_data_date = datetime.datetime.fromtimestamp(dji['market_time'], NEW_YORK_TZ).date()
+        expected = now_taipei.date() - datetime.timedelta(days=1)
+        while expected.weekday() >= 5:
+            expected -= datetime.timedelta(days=1)
+        if us_data_date < expected:
+            us_market_note_html = f'''<div style="background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.4); border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; font-size: 0.85rem; color: #38bdf8;">
+                ℹ️ 美股 {expected.strftime("%m/%d")} 休市，以下美股數據沿用前一交易日（{us_data_date.strftime("%Y-%m-%d")}，美東時間）收盤。
+            </div>'''
+
     svg_dji = generate_svg_chart("dji", dji['prev_close'] or intraday_data['dji'][0], intraday_data['dji'][1])
     svg_spx = generate_svg_chart("spx", spx['prev_close'] or intraday_data['spx'][0], intraday_data['spx'][1])
     svg_ixic = generate_svg_chart("ixic", ixic['prev_close'] or intraday_data['ixic'][0], intraday_data['ixic'][1])
@@ -261,8 +283,10 @@ def build_cloud_morning_report():
         try:
             with open(json_path, 'r', encoding='utf-8') as f:
                 reports = json.load(f)
-        except Exception:
-            reports = []
+        except Exception as e:
+            # Never overwrite the history with a one-entry list because of a parse error.
+            print(f"[ERROR] Cannot read {json_path}: {e}. Aborting to protect the report history.")
+            sys.exit(1)
     reports = [r for r in reports if r.get('date') != today_str]
     reports.insert(0, {
         "date": today_str,
@@ -270,6 +294,7 @@ def build_cloud_morning_report():
         "filename": output_filename,
         "summary": "包含觀盤速覽重點、美股四大指數與費半日內走勢圖、匯率/債市/黃金大宗商品與區域股市分析"
     })
+    reports.sort(key=lambda r: r.get('date', ''), reverse=True)
 
     html_content = f"""<!DOCTYPE html>
 <html lang="zh-TW">
@@ -515,6 +540,7 @@ def build_cloud_morning_report():
         <div class="hero-banner">
             <h1 class="hero-title"><span>🎯</span> 全球市場觀盤與台股開盤焦點速覽</h1>
             {quality_warning_html}
+            {us_market_note_html}
             <div class="hero-highlights">
                 <div class="highlight-item">
                     <span class="highlight-tag tag-us">美股觀盤</span>
@@ -642,7 +668,7 @@ def build_cloud_morning_report():
             <div class="table-responsive">
                 <table>
                     <thead>
-                        <tr><th>市場 / 指數名稱</th><th>最新收盤</th><th>當日漲跌</th></tr>
+                        <tr><th>市場 / 指數名稱</th><th>最新價</th><th>當日漲跌</th></tr>
                     </thead>
                     <tbody>
                         <tr><td><strong>英國富時 100 (FTSE 100)</strong></td><td>{ftse['price']}</td><td>{format_badge(ftse)}</td></tr>
@@ -657,7 +683,7 @@ def build_cloud_morning_report():
             <div class="table-responsive">
                 <table>
                     <thead>
-                        <tr><th>市場 / 指數名稱</th><th>最新收盤</th><th>當日漲跌</th></tr>
+                        <tr><th>市場 / 指數名稱</th><th>最新價</th><th>當日漲跌</th></tr>
                     </thead>
                     <tbody>
                         <tr><td><strong>日本日經 225 (Nikkei 225)</strong></td><td>{n225['price']}</td><td>{format_badge(n225)}</td></tr>

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FinLab 房貸大師 (動態利率版)</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
     <style>
         body { font-family: "Microsoft JhengHei", "Segoe UI", sans-serif; background-color: #f0f2f5; padding: 20px; color: #333; }
         .container { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
@@ -109,7 +109,7 @@
     function addRateEvent() {
         let y = parseFloat(document.getElementById('newRateYear').value);
         let r = parseFloat(document.getElementById('newRateVal').value);
-        if(!y || !r) return alert("請輸入完整年份與利率");
+        if(!Number.isInteger(y) || y < 1 || isNaN(r) || r < 0) return alert("請輸入完整年份(正整數)與利率(可為 0)");
         rateEvents.push({ year: y, rate: r });
         rateEvents.sort((a,b) => a.year - b.year);
         document.getElementById('newRateYear').value = '';
@@ -120,7 +120,7 @@
     function addPrepayEvent() {
         let y = parseFloat(document.getElementById('prepayYear').value);
         let amt = parseFloat(document.getElementById('prepayAmount').value);
-        if(!y || !amt) return alert("請輸入完整年份與金額");
+        if(!Number.isInteger(y) || y < 1 || !(amt > 0)) return alert("請輸入完整年份(正整數)與金額");
         prepayEvents.push({ year: y, amount: amt });
         prepayEvents.sort((a,b) => a.year - b.year);
         document.getElementById('prepayYear').value = '';
@@ -149,8 +149,15 @@
         let loanTotal = parseFloat(document.getElementById('loanAmount').value) * 10000;
         let initRate = parseFloat(document.getElementById('initialRate').value);
         let years = parseInt(document.getElementById('loanYears').value);
-        let graceYears = parseInt(document.getElementById('gracePeriod').value);
-        
+        let graceYears = parseInt(document.getElementById('gracePeriod').value) || 0;
+
+        if (!(loanTotal > 0) || isNaN(initRate) || initRate < 0 || !(years > 0)) {
+            return alert("請輸入正確的貸款總額、利率與期限");
+        }
+        if (graceYears < 0 || graceYears >= years) {
+            return alert("寬限期必須小於貸款期限，否則寬限期結束時本金仍未償還");
+        }
+
         let totalMonths = years * 12;
         let balance = loanTotal;
         let currentRatePct = initRate;
@@ -171,22 +178,26 @@
             let isGracePeriod = (m <= graceYears * 12);
 
             // A. 利率變動
-            let rateChange = rateEvents.find(e => (e.year - 1) * 12 + 1 === m);
-            if (rateChange) currentRatePct = rateChange.rate;
+            // 同一年有多筆變動時，以最後加入的一筆為準
+            let rateChanges = rateEvents.filter(e => (e.year - 1) * 12 + 1 === m);
+            if (rateChanges.length) currentRatePct = rateChanges[rateChanges.length - 1].rate;
             let monthlyRate = (currentRatePct / 100) / 12;
 
             // B. 提前還款
             let prepayAmt = 0;
             // 邏輯：檢查本月是否有提前還款
-            let prepayEvent = prepayEvents.find(e => (e.year - 1) * 12 + 1 === m);
-            if (prepayEvent) {
-                prepayAmt = prepayEvent.amount * 10000;
+            // 同一年有多筆提前還款時加總
+            let prepayThisMonth = prepayEvents
+                .filter(e => (e.year - 1) * 12 + 1 === m)
+                .reduce((sum, e) => sum + e.amount, 0);
+            if (prepayThisMonth > 0) {
+                prepayAmt = prepayThisMonth * 10000;
                 if(balance >= prepayAmt) balance -= prepayAmt;
                 else { prepayAmt = balance; balance = 0; }
                 
                 totalPaidReal += prepayAmt;
-                // 累計到當年度變數中
-                annualPrepayTrack += prepayEvent.amount; 
+                // 累計到當年度變數中 (以實際還掉的金額計，超過餘額的部分不算)
+                annualPrepayTrack += prepayAmt / 10000;
             }
 
             // C. 計算 PMT
@@ -200,7 +211,11 @@
                     principal = 0;
                 } else {
                     let remainingMonths = totalMonths - m + 1;
-                    pmt = (balance * monthlyRate * Math.pow(1 + monthlyRate, remainingMonths)) / (Math.pow(1 + monthlyRate, remainingMonths) - 1);
+                    if (monthlyRate === 0) {
+                        pmt = balance / remainingMonths;
+                    } else {
+                        pmt = (balance * monthlyRate * Math.pow(1 + monthlyRate, remainingMonths)) / (Math.pow(1 + monthlyRate, remainingMonths) - 1);
+                    }
                     principal = pmt - interest;
                 }
             }
@@ -271,7 +286,7 @@
         }
 
         let tableHtml = finalRows.map(row => {
-            let prepayText = row.prepay > 0 ? `<span class="highlight-change">+${row.prepay}萬</span>` : "-";
+            let prepayText = row.prepay > 0 ? `<span class="highlight-change">+${+row.prepay.toFixed(2)}萬</span>` : "-";
             return `
                 <tr>
                     <td>第 ${row.year} 年</td>

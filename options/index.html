@@ -64,6 +64,8 @@
 
     }
 
+    .back-link{ display:inline-block; margin-bottom:8px; color:#0969da; text-decoration:none; font-weight:bold; }
+
     .tabs{
 
       display:flex;
@@ -492,6 +494,8 @@
 
 <body>
 
+  <a href="../index.html" class="back-link">← 回首頁</a>
+
   <h2>Option Strategy & IV Analyzer</h2>
 
 
@@ -552,7 +556,7 @@
 
         <label>標的現貨價 (S)</label>
 
-        <input type="number" id="S" value="100" oninput="scheduleUpdate()">
+        <input type="number" id="S" value="100" oninput="calculateOnlyIV(); scheduleUpdate()">
 
       </div>
 
@@ -680,11 +684,11 @@
 
         <label><input type="radio" name="g" value="gamma" onchange="scheduleUpdate()"><span>Gamma</span></label>
 
-        <label><input type="radio" name="g" value="vega"  onchange="scheduleUpdate()"><span>Vega</span></label>
+        <label><input type="radio" name="g" value="vega"  onchange="scheduleUpdate()"><span>Vega (每 1% 波動)</span></label>
 
-        <label><input type="radio" name="g" value="theta" onchange="scheduleUpdate()"><span>Theta</span></label>
+        <label><input type="radio" name="g" value="theta" onchange="scheduleUpdate()"><span>Theta (每日)</span></label>
 
-        <label><input type="radio" name="g" value="rho"   onchange="scheduleUpdate()"><span>Rho</span></label>
+        <label><input type="radio" name="g" value="rho"   onchange="scheduleUpdate()"><span>Rho (每 1% 利率)</span></label>
 
       </div>
 
@@ -755,7 +759,9 @@ function closeDynGammaIfOpen(){
 
 let currentMode = 'single';
 
-let lastCalculatedIV = 0.2;
+let lastCalculatedIV = null;
+
+const GREEK_LABEL = { payoff:'P/L', delta:'Delta', gamma:'Gamma', vega:'Vega (per 1% vol)', theta:'Theta (per day)', rho:'Rho (per 1%)' };
 
 let chartInstance = null;
 
@@ -939,7 +945,9 @@ function legPayoffAtExpiry(S, leg, S0){
 
   const bs0 = getBS(S0, leg.K, leg.T, leg.r, leg.sigma);
 
-  const premium0 = (leg.type === 'call') ? bs0.call : bs0.put;
+  // 期初權利金以無風險利率滾到到期日，與日曆價差的處理一致
+
+  const premium0 = ((leg.type === 'call') ? bs0.call : bs0.put) * Math.exp(leg.r * leg.T);
 
   const intrinsic = (leg.type === 'call') ? Math.max(0, S - leg.K) : Math.max(0, leg.K - S);
 
@@ -971,41 +979,87 @@ function calculateOnlyIV(){
 
   const S = +document.getElementById('S').value;
 
-  if (leg1.T <= 0 || mktP <= 0 || S <= 0 || leg1.K <= 0) return;
+  const out = document.getElementById('iv_res');
+
+  lastCalculatedIV = null;
+
+  if (!(leg1.T > 0 && mktP > 0 && S > 0 && leg1.K > 0)) { out.innerText = "--%"; return; }
 
 
 
-  let v = 0.3;
+  // 無套利界限：call 介於 max(0, S−Ke^{−rT}) 與 S；put 介於 max(0, Ke^{−rT}−S) 與 Ke^{−rT}
 
-  for(let i=0;i<25;i++){
+  const pvK = leg1.K * Math.exp(-leg1.r * leg1.T);
 
-    const b = getBS(S, leg1.K, leg1.T, leg1.r, v);
+  const lower = (leg1.type === 'call') ? Math.max(0, S - pvK) : Math.max(0, pvK - S);
 
-    const modelP = (leg1.type === 'call') ? b.call : b.put;
+  const upper = (leg1.type === 'call') ? S : pvK;
 
-    const vega_per1vol = b.greeks.vega[leg1.type] * 100;
+  if (mktP <= lower || mktP >= upper) {
 
-    const diff = modelP - mktP;
+    out.innerText = "無解（超出無套利範圍）";
 
-
-
-    if (Math.abs(diff) < 1e-6 || Math.abs(vega_per1vol) < 1e-10) break;
-
-    v = v - diff/vega_per1vol;
-
-    v = Math.max(1e-4, Math.min(5, v));
+    return;
 
   }
 
 
 
+  const priceAt = v => {
+
+    const b = getBS(S, leg1.K, leg1.T, leg1.r, v);
+
+    return (leg1.type === 'call') ? b.call : b.put;
+
+  };
+
+  // 先用 Newton，失敗時改用二分法（價格對 σ 單調遞增）
+
+  let lo = 1e-4, hi = 5, v = 0.3, ok = false;
+
+  for(let i=0;i<50;i++){
+
+    const b = getBS(S, leg1.K, leg1.T, leg1.r, v);
+
+    const diff = ((leg1.type === 'call') ? b.call : b.put) - mktP;
+
+    if (Math.abs(diff) < 1e-8) { ok = true; break; }
+
+    if (diff > 0) hi = Math.min(hi, v); else lo = Math.max(lo, v);
+
+    const vega_per1vol = b.greeks.vega[leg1.type] * 100;
+
+    let next = (vega_per1vol > 1e-10) ? v - diff/vega_per1vol : NaN;
+
+    if (!(next > lo && next < hi)) next = (lo + hi) / 2;
+
+    v = next;
+
+    if (hi - lo < 1e-10) { ok = Math.abs(priceAt(v) - mktP) < 1e-6; break; }
+
+  }
+
+  if (!ok) ok = Math.abs(priceAt(v) - mktP) < 1e-6;
+
+
+
+  if (!ok) {
+
+    out.innerText = "無解（未收斂）";
+
+    return;
+
+  }
+
   lastCalculatedIV = v;
 
-  document.getElementById('iv_res').innerText = (v*100).toFixed(2) + "%";
+  out.innerText = (v*100).toFixed(2) + "%";
 
 }
 
 function syncIVtoL1Sigma(){
+
+  if (lastCalculatedIV === null) { alert('目前沒有有效的反推 IV，請先確認市場成交價。'); return; }
 
   document.getElementById('L1_sigma').value = lastCalculatedIV.toFixed(4);
 
@@ -1400,7 +1454,7 @@ function drawChart(xs, labels, main, l1, l2, type, S0, leg1Obj, leg2Obj){
 
     datasets.push({
 
-      label: (type === 'payoff') ? 'P/L' : type.toUpperCase(),
+      label: GREEK_LABEL[type] || type.toUpperCase(),
 
       data: l1,
 
@@ -1466,9 +1520,13 @@ function drawChart(xs, labels, main, l1, l2, type, S0, leg1Obj, leg2Obj){
 
   // annotations
 
+  const spotIdx = (xs.length > 1) ? (S0 - xs[0]) / (xs[1] - xs[0]) : 0;
+
   const annotations = {
 
-    spotLine: { type:'line', xMin:S0, xMax:S0, borderColor:'#fbbf24', borderWidth:2, borderDash:[3,3] }
+    // x 軸是類別軸，位置要用索引；依 S0 在 xs 中的相對位置換算
+
+    spotLine: { type:'line', xMin:spotIdx, xMax:spotIdx, borderColor:'#fbbf24', borderWidth:2, borderDash:[3,3] }
 
   };
 
@@ -1540,7 +1598,7 @@ function drawChart(xs, labels, main, l1, l2, type, S0, leg1Obj, leg2Obj){
 
     const color = (leg1Obj.type === 'call') ? '#4338ca' : '#ef4444';
 
-    html += `<div class="legend-indicator"><div class="line-solid" style="background:${color}"></div> ${(type==='payoff')?'P/L':type.toUpperCase()}</div>`;
+    html += `<div class="legend-indicator"><div class="line-solid" style="background:${color}"></div> ${GREEK_LABEL[type] || type.toUpperCase()}</div>`;
 
   } else {
 

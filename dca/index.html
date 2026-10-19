@@ -50,6 +50,7 @@
 <body>
 
 <div class="container">
+    <a href="../index.html" style="display:inline-block; margin-bottom:12px; color:#0969da; text-decoration:none; font-weight:bold;">← 回首頁</a>
     <h1>💰 Lump-Sum vs. DCA 比較回測</h1>
     <p class="subtitle">比較「定期定額」與「同額本金期初單筆投入」之績效差異</p>
 
@@ -111,8 +112,24 @@ const MY_PROXY_BASE = "https://solitary-boat-26d0.hclee-finance.workers.dev/?url
 const safeNum = (v) => (typeof v === 'number' && !isNaN(v)) ? v : null;
 const toISODate = (ts) => new Date(ts * 1000).toISOString().split('T')[0];
 
-const formatCurrency = (num) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(num);
-const formatPercent = (num) => (num * 100).toFixed(2) + '%';
+// 幣別由 Yahoo 回傳的 meta.currency 決定（例如 .TW 為 TWD）
+let CURRENCY = 'USD';
+const formatCurrency = (num) => {
+    try {
+        return new Intl.NumberFormat('en-US', { style: 'currency', currency: CURRENCY, maximumFractionDigits: 0 }).format(num);
+    } catch (e) {
+        return `${CURRENCY} ${new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(num)}`;
+    }
+};
+const currencySymbol = () => {
+    try {
+        const part = new Intl.NumberFormat('en-US', { style: 'currency', currency: CURRENCY }).formatToParts(0).find(p => p.type === 'currency');
+        return part ? part.value : '';
+    } catch (e) {
+        return '';
+    }
+};
+const formatPercent = (num) => isFinite(num) ? (num * 100).toFixed(2) + '%' : '—';
 
 // --- 2. 資料獲取層 ---
 
@@ -127,26 +144,41 @@ async function fetchYahooDaily(sym, startISO, endISO) {
         // 修改處：將原本的 CORS_PROXY 替換為新變數
         // 確保 Yahoo 的 URL 有被 encodeURIComponent，避免參數中的 & 符號干擾到 Proxy
         const res = await fetch(MY_PROXY_BASE + encodeURIComponent(url));
-        
+
+        let json = null;
+        try { json = await res.json(); } catch (e) { json = null; }
+        // Yahoo 的錯誤說明（例如代碼不存在）放在 chart.error.description
+        const yahooError = json?.chart?.error?.description;
+        if (yahooError) throw new Error(`${sym}：${yahooError}`);
         if (!res.ok) throw new Error(`${sym} Proxy HTTP ${res.status}`);
-        const json = await res.json();
 
         const result = json?.chart?.result?.[0];
         if (!result) throw new Error(`${sym} 抓取失敗（回傳格式異常或無資料）`);
 
         const ts = result.timestamp || [];
-        const prices = result.indicators?.adjclose?.[0]?.adjclose || 
-                       result.indicators?.quote?.[0]?.close || [];
+        const adjPrices = result.indicators?.adjclose?.[0]?.adjclose;
+        const adjusted = Array.isArray(adjPrices) && adjPrices.some(v => safeNum(v) !== null);
+        const prices = adjusted ? adjPrices : (result.indicators?.quote?.[0]?.close || []);
 
         const out = [];
+        let lastDateStr = null;
         for (let i = 0; i < ts.length; i++) {
             const dateStr = toISODate(ts[i]);
             const price = safeNum(prices[i]);
-            if (price !== null) {
+            if (price !== null && price > 0) {
+                // 同一日偶有兩筆（盤中最後一根），保留最後一筆
+                if (dateStr === lastDateStr) out.pop();
                 out.push({ date: new Date(dateStr), price: price, dateStr: dateStr });
+                lastDateStr = dateStr;
             }
         }
-        return out;
+        // 單日漲跌超過 40% 多半是資料源未調整分割/合併，提示使用者
+        const jumps = [];
+        for (let i = 1; i < out.length; i++) {
+            const r = out[i].price / out[i-1].price - 1;
+            if (Math.abs(r) > 0.4) jumps.push(`${out[i].dateStr} (${(r * 100).toFixed(0)}%)`);
+        }
+        return { data: out, currency: result.meta?.currency || 'USD', adjusted, jumps };
     } catch (e) {
         console.error("Fetch Error:", e);
         throw e;
@@ -161,24 +193,31 @@ function resampleData(dailyData, freq) {
     let currentGroupKey = null;
     let tempGroup = [];
 
-    const getGroupKey = (date, f) => {
-        const d = new Date(date);
-        const y = d.getFullYear();
-        const m = d.getMonth();
-        const firstDayOfYear = new Date(y, 0, 1);
-        const pastDaysOfYear = (d - firstDayOfYear) / 86400000;
-        const w = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
-        const q = Math.floor(m / 3);
-        
-        if (f === 'years') return `${y}`;
+    // 一律由 'YYYY-MM-DD' 字串與 UTC 計算，避免瀏覽器時區把日期歸到前一個月
+    const isoWeekKey = (dateStr) => {
+        const [y, m, dd] = dateStr.split('-').map(Number);
+        const d = new Date(Date.UTC(y, m - 1, dd));
+        const dow = d.getUTCDay() || 7;           // 週一=1 ... 週日=7
+        d.setUTCDate(d.getUTCDate() + 4 - dow);   // 移到該週的週四，週四所在年份即 ISO 年
+        const isoYear = d.getUTCFullYear();
+        const week = Math.ceil(((d - Date.UTC(isoYear, 0, 1)) / 86400000 + 1) / 7);
+        return `${isoYear}-W${week}`;
+    };
+
+    const getGroupKey = (dateStr, f) => {
+        const y = dateStr.slice(0, 4);
+        const m = Number(dateStr.slice(5, 7));
+        const q = Math.floor((m - 1) / 3) + 1;
+
+        if (f === 'years') return y;
         if (f === 'quarters') return `${y}-Q${q}`;
         if (f === 'months') return `${y}-${m}`;
-        if (f === 'weeks') return `${y}-W${w}`;
-        return date.toISOString();
+        if (f === 'weeks') return isoWeekKey(dateStr);
+        return dateStr;
     };
 
     for (let item of dailyData) {
-        const key = getGroupKey(item.date, freq);
+        const key = getGroupKey(item.dateStr, freq);
         if (key !== currentGroupKey) {
             if (currentGroupKey !== null) grouped.push(tempGroup);
             tempGroup = [];
@@ -188,82 +227,137 @@ function resampleData(dailyData, freq) {
     }
     if (tempGroup.length > 0) grouped.push(tempGroup);
 
-    return grouped.map(g => g[g.length - 1]); 
+    // 起點用開始日期後的第一個交易日，之後每期取期末最後一個交易日
+    const points = [dailyData[0]];
+    for (let g of grouped) {
+        const last = g[g.length - 1];
+        if (last.dateStr !== points[points.length - 1].dateStr) points.push(last);
+    }
+    return points;
 }
 
 // --- 4. 財金邏輯層 ---
 
-function calculateStrategy(priceData, IA, CFA, freq, isLumpSumMode = false, predefinedTotalInvested = null) {
+const YEAR_MS = 365.25 * 86400000;
+const yearsBetween = (d0, d1) => (new Date(d1) - new Date(d0)) / YEAR_MS;
+
+// 依實際日期的現金流求年化內部報酬率 (XIRR)。flows: [{ t: 年, cf }]，投入為負、期末價值為正
+function solveXIRR(flows) {
+    const npv = (r) => flows.reduce((s, f) => s + f.cf / Math.pow(1 + r, f.t), 0);
+    const hasOut = flows.some(f => f.cf < 0);
+    const hasIn = flows.some(f => f.cf > 0);
+    if (!hasOut) return NaN;
+    if (!hasIn) return -1;
+    let lo = -0.999999, hi = 1;
+    while (npv(hi) > 0 && hi < 1e6) hi *= 2;
+    if (npv(lo) < 0 || npv(hi) > 0) return NaN;
+    for (let k = 0; k < 200; k++) {
+        const mid = (lo + hi) / 2;
+        if (npv(mid) > 0) lo = mid; else hi = mid;
+    }
+    return (lo + hi) / 2;
+}
+
+// timing: 'End' = 期末投入（先計報酬再投入）；'First' = 期初投入（先投入再計報酬）
+function calculateStrategy(priceData, IA, CFA, freq, isLumpSumMode = false, timing = 'End') {
     let adjF = 1;
     if (freq === 'weeks') adjF = 52;
     else if (freq === 'months') adjF = 12;
     else if (freq === 'quarters') adjF = 4;
     else if (freq === 'years') adjF = 1;
 
-    const returns = [];
-    for (let i = 1; i < priceData.length; i++) {
-        const r = (priceData[i].price / priceData[i-1].price) - 1;
-        returns.push(r);
-    }
+    const periodicInvest = isLumpSumMode ? 0 : CFA * (1/adjF);
+    const atStart = (timing === 'First');
+    const d0 = priceData[0].dateStr;
 
     const wealthHistory = [];
+    const flows = [];                 // XIRR 現金流
+    const twReturns = [];             // 時間加權報酬（扣除資金投入的影響）
+    const navHistory = [1];           // 時間加權累積淨值，用於最大回撤
     let currentWealth = IA;
     let totalInvested = IA;
-    const periodicInvest = isLumpSumMode ? 0 : CFA * (1/adjF);
+    let nav = 1;
 
-    wealthHistory.push({ 
-        date: priceData[0].dateStr, 
-        wealth: IA, 
-        invested: IA 
+    if (IA > 0) flows.push({ t: 0, cf: -IA });
+    wealthHistory.push({
+        date: d0,
+        wealth: IA,
+        invested: IA
     });
 
-    const n = returns.length;
-    for (let i = 0; i < n; i++) {
-        const r = returns[i];
+    const n = priceData.length - 1;
+    for (let i = 1; i <= n; i++) {
+        const r = (priceData[i].price / priceData[i-1].price) - 1;
+
+        if (atStart && periodicInvest > 0) {
+            currentWealth += periodicInvest;
+            totalInvested += periodicInvest;
+            flows.push({ t: yearsBetween(d0, priceData[i-1].dateStr), cf: -periodicInvest });
+            // 期初投入發生在上一期期末那天，該點顯示投入後的狀態
+            const prev = wealthHistory[wealthHistory.length - 1];
+            prev.wealth = currentWealth;
+            prev.invested = totalInvested;
+        }
+
+        const base = currentWealth;
         currentWealth = currentWealth * (1 + r);
-        currentWealth += periodicInvest;
-        totalInvested += periodicInvest;
-        
+        if (base > 0) {
+            const tw = currentWealth / base - 1;
+            twReturns.push(tw);
+            nav *= (1 + tw);
+        }
+        navHistory.push(nav);
+
+        if (!atStart && periodicInvest > 0) {
+            currentWealth += periodicInvest;
+            totalInvested += periodicInvest;
+            flows.push({ t: yearsBetween(d0, priceData[i].dateStr), cf: -periodicInvest });
+        }
+
         wealthHistory.push({
-            date: priceData[i+1].dateStr,
+            date: priceData[i].dateStr,
             wealth: currentWealth,
             invested: totalInvested
         });
     }
 
-    const wealthReturns = [];
-    for(let i=1; i<wealthHistory.length; i++){
-        wealthReturns.push( (wealthHistory[i].wealth / wealthHistory[i-1].wealth) - 1 );
-    }
-
     const mean = arr => arr.reduce((a,b)=>a+b, 0) / arr.length;
     const std = arr => {
-        const m = mean(arr);
         if(arr.length < 2) return 0;
+        const m = mean(arr);
         return Math.sqrt(arr.reduce((a,b)=>a + Math.pow(b-m,2), 0) / (arr.length - 1));
     };
-    
+
     const finalWealth = wealthHistory[wealthHistory.length-1].wealth;
-    const r_CAGR = adjF * (Math.pow(finalWealth / totalInvested, 1/wealthReturns.length) - 1);
-    const r_Vol = Math.sqrt(adjF) * std(wealthReturns);
-    
-    let maxWealth = -Infinity;
+    flows.push({ t: yearsBetween(d0, priceData[n].dateStr), cf: finalWealth });
+    // 單筆投入時 XIRR 即為複利年化報酬 (CAGR)；定期定額時為資金加權年化報酬 (IRR)
+    const r_CAGR = solveXIRR(flows);
+    const r_Vol = Math.sqrt(adjF) * std(twReturns);
+
+    let maxNav = -Infinity;
     let maxDD = 0;
-    for (let w of wealthHistory) {
-        if (w.wealth > maxWealth) maxWealth = w.wealth;
-        const dd = (w.wealth - maxWealth) / maxWealth;
+    for (let v of navHistory) {
+        if (v > maxNav) maxNav = v;
+        const dd = (v - maxNav) / maxNav;
         if (dd < maxDD) maxDD = dd;
+    }
+
+    // 帳面最大虧損：資產相對累積投入成本的最低點
+    let maxLoss = 0;
+    for (let w of wealthHistory) {
+        if (w.invested > 0) maxLoss = Math.min(maxLoss, w.wealth / w.invested - 1);
     }
 
     return {
         history: wealthHistory,
         stats: {
-            finalWealth, 
+            finalWealth,
             totalInvested,
             profit: finalWealth - totalInvested,
-            cagr: r_CAGR, 
+            cagr: r_CAGR,
             vol: r_Vol,
             maxDD,
+            maxLoss,
             ratio: finalWealth / totalInvested
         }
     };
@@ -283,20 +377,32 @@ document.getElementById('btnRun').addEventListener('click', async () => {
     const IA = parseFloat(document.getElementById('IA').value);
     const CFA = parseFloat(document.getElementById('CFA').value);
     const freq = document.getElementById('Freq').value;
+    const timing = document.getElementById('CFATiming').value;
 
-    if(!symb) { alert("請輸入股票代碼"); return; }
+    const inputError = (text) => { msg.innerHTML = `<span class="error">錯誤: ${text}</span>`; };
+    if(!symb) { inputError("請輸入股票代碼"); return; }
+    if(!start || !end) { inputError("請選擇開始與結束日期"); return; }
+    if(start >= end) { inputError("開始日期必須早於結束日期"); return; }
+    if(isNaN(IA) || isNaN(CFA)) { inputError("初始金額與定期定額年金額請輸入數字（可填 0）"); return; }
+    if(IA < 0 || CFA < 0) { inputError("金額不可為負數"); return; }
+    if(IA === 0 && CFA === 0) { inputError("初始金額與定期定額年金額不可同時為 0"); return; }
 
     try {
         btn.disabled = true;
         msg.innerHTML = '<span class="loading">正在下載與計算...</span>';
 
-        const rawData = await fetchYahooDaily(symb, start, end);
+        const fetched = await fetchYahooDaily(symb, start, end);
+        const rawData = fetched.data;
         if(rawData.length === 0) throw new Error("無數據返回");
+        CURRENCY = fetched.currency;
         const resampledData = resampleData(rawData, freq);
+        if(resampledData.length < 3) throw new Error("區間內資料不足 2 期，請拉長日期區間或改用較短的投資頻率");
 
-        const dcaResult = calculateStrategy(resampledData, IA, CFA, freq, false);
+        const dcaResult = calculateStrategy(resampledData, IA, CFA, freq, false, timing);
         const totalCapital = dcaResult.stats.totalInvested;
         const lsResult = calculateStrategy(resampledData, totalCapital, 0, freq, true);
+        const cs = currencySymbol();
+        const fmtAmt = (v) => new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(Math.round(v));
 
         // --- 繪圖 (Plotly) ---
         
@@ -306,7 +412,7 @@ document.getElementById('btnRun').addEventListener('click', async () => {
             type: 'scatter', mode: 'lines', name: 'DCA 策略淨值 (Wealth)',
             line: { color: '#3182ce', width: 2 },
             fill: 'tozeroy', fillcolor: 'rgba(49, 130, 206, 0.1)',
-            hovertemplate: '<b>DCA Wealth</b>: $%{y:,.0f}<extra></extra>'
+            hovertemplate: `<b>DCA Wealth</b>: ${cs}%{y:,.0f}<extra></extra>`
         };
 
         const traceDCACost = {
@@ -314,7 +420,7 @@ document.getElementById('btnRun').addEventListener('click', async () => {
             y: dcaResult.history.map(d => d.invested),
             type: 'scatter', mode: 'lines', name: 'DCA 累積投入成本',
             line: { color: '#3182ce', width: 1.5, dash: 'dot' },
-            hovertemplate: 'DCA Cost: $%{y:,.0f}<extra></extra>'
+            hovertemplate: `DCA Cost: ${cs}%{y:,.0f}<extra></extra>`
         };
 
         const traceLS = {
@@ -322,7 +428,7 @@ document.getElementById('btnRun').addEventListener('click', async () => {
             y: lsResult.history.map(d => d.wealth),
             type: 'scatter', mode: 'lines', name: 'Lump Sum 策略淨值 (Wealth)',
             line: { color: '#ed8936', width: 2 },
-            hovertemplate: '<b>Lump Sum Wealth</b>: $%{y:,.0f}<extra></extra>'
+            hovertemplate: `<b>Lump Sum Wealth</b>: ${cs}%{y:,.0f}<extra></extra>`
         };
         
         const traceLSCost = {
@@ -330,7 +436,7 @@ document.getElementById('btnRun').addEventListener('click', async () => {
             y: lsResult.history.map(d => d.invested),
             type: 'scatter', mode: 'lines', name: 'Lump Sum 成本',
             line: { color: '#ed8936', width: 1.5, dash: 'dot' },
-            hovertemplate: 'LS Cost: $%{y:,.0f}<extra></extra>'
+            hovertemplate: `LS Cost: ${cs}%{y:,.0f}<extra></extra>`
         };
 
         const layout = {
@@ -343,8 +449,8 @@ document.getElementById('btnRun').addEventListener('click', async () => {
                 rangeslider: { visible: true }
             },
             yaxis: { 
-                title: 'Amount (USD)', showgrid: true, gridcolor: '#edf2f7',
-                tickformat: '$,.0f' 
+                title: `Amount (${CURRENCY})`, showgrid: true, gridcolor: '#edf2f7',
+                tickformat: ',.0f', tickprefix: cs 
             },
             legend: { orientation: 'h', y: 1.1 },
             margin: { l: 60, r: 60, t: 30, b: 60 },
@@ -355,7 +461,7 @@ document.getElementById('btnRun').addEventListener('click', async () => {
                     y: dcaResult.stats.finalWealth,
                     xref: 'x', yref: 'y',
                     // 設定箭頭：垂直向下，帶背景色
-                    text: `<b>DCA Final</b><br>$${new Intl.NumberFormat().format(Math.round(dcaResult.stats.finalWealth))}`,
+                    text: `<b>DCA Final</b><br>${cs}${fmtAmt(dcaResult.stats.finalWealth)}`,
                     showarrow: true,
                     arrowhead: 2, // 樣式2比較尖銳好看
                     arrowsize: 1,
@@ -370,7 +476,7 @@ document.getElementById('btnRun').addEventListener('click', async () => {
                     x: lsResult.history[lsResult.history.length-1].date,
                     y: lsResult.stats.finalWealth,
                     xref: 'x', yref: 'y',
-                    text: `<b>LS Final</b><br>$${new Intl.NumberFormat().format(Math.round(lsResult.stats.finalWealth))}`,
+                    text: `<b>LS Final</b><br>${cs}${fmtAmt(lsResult.stats.finalWealth)}`,
                     showarrow: true,
                     arrowhead: 2,
                     arrowsize: 1,
@@ -393,8 +499,10 @@ document.getElementById('btnRun').addEventListener('click', async () => {
         const diffColor = diffWealth > 0 ? "#ed8936" : "#3182ce";
 
         // --- 重點修正：加入 CAGR/Volatility 指標 ---
-        const dcaRatio = sDCA.cagr / sDCA.vol;
-        const lsRatio = sLS.cagr / sLS.vol;
+        const fmtRatio = (s) => (s.vol > 0 && isFinite(s.cagr)) ? (s.cagr / s.vol).toFixed(2) : '—';
+        const dcaRatio = fmtRatio(sDCA);
+        const lsRatio = fmtRatio(sLS);
+        const timingLabel = timing === 'First' ? '期初' : '期末';
 
         const htmlTable = `
         <table class="stats-table">
@@ -427,7 +535,7 @@ document.getElementById('btnRun').addEventListener('click', async () => {
                     <td>${formatPercent((sLS.finalWealth/sLS.totalInvested)-1)}</td>
                 </tr>
                 <tr>
-                    <td>年化報酬率 (CAGR)</td>
+                    <td>年化報酬率 (DCA: IRR / LS: CAGR)</td>
                     <td>${formatPercent(sDCA.cagr)}</td>
                     <td>${formatPercent(sLS.cagr)}</td>
                 </tr>
@@ -437,17 +545,30 @@ document.getElementById('btnRun').addEventListener('click', async () => {
                     <td>${formatPercent(sLS.maxDD)}</td>
                 </tr>
                 <tr>
+                    <td>帳面最大虧損 (資產 vs 累積成本)</td>
+                    <td>${formatPercent(sDCA.maxLoss)}</td>
+                    <td>${formatPercent(sLS.maxLoss)}</td>
+                </tr>
+                <tr>
                     <td>年化波動率 (Volatility)</td>
                     <td>${formatPercent(sDCA.vol)}</td>
                     <td>${formatPercent(sLS.vol)}</td>
                 </tr>
                 <tr style="background-color:#fffbea; border-top:2px solid #edf2f7;">
-                    <td><b>報酬風險比 (CAGR / Volatility)</b></td>
-                    <td><b>${dcaRatio.toFixed(2)}</b></td>
-                    <td><b>${lsRatio.toFixed(2)}</b></td>
+                    <td><b>報酬風險比 (年化報酬 / Volatility)</b></td>
+                    <td><b>${dcaRatio}</b></td>
+                    <td><b>${lsRatio}</b></td>
                 </tr>
             </tbody>
         </table>
+        <div style="margin-top:12px; font-size:0.85em; color:#718096; line-height:1.6;">
+            期間：${resampledData[0].dateStr} 至 ${resampledData[resampledData.length-1].dateStr}，共 ${resampledData.length - 1} 期；定期定額於每期${timingLabel}投入，幣別 ${CURRENCY}。<br>
+            DCA 年化報酬為依實際投入日期計算的內部報酬率 (IRR)；單筆投入為複利年化報酬 (CAGR)。<br>
+            最大回撤與波動率以時間加權報酬計算，已排除新投入資金的影響，因此兩策略接近時代表承擔的是同一標的的價格風險；「帳面最大虧損」則顯示資產相對累積投入成本的最低點。<br>
+            ${fetched.adjusted ? '價格採用還原股價 (Adj Close)，視同股利全數再投入。' : '<b>注意：此標的無還原股價，改用收盤價，未計入股利。</b>'}
+            未計手續費與交易稅，並假設可買零股（任意股數）。
+            ${fetched.jumps.length ? `<br><b style="color:#c53030;">資料警示：${fetched.jumps.join('、')} 單日價格變動超過 40%，可能是資料源未調整股票分割，回測結果（尤其最大回撤與年化報酬）可能失真，建議將開始日期設在該日之後。</b>` : ''}
+        </div>
         <div style="margin-top:15px; padding:15px; background:${diffColor}15; border-left:5px solid ${diffColor}; color:${diffColor==="#ed8936"?"#c05621":"#2c5282"}">
             <strong>💡 結論：</strong> 在此區間內，<b>${winner}</b> 表現較佳，
             終值多出 <b>${formatCurrency(Math.abs(diffWealth))}</b>。

@@ -5,9 +5,13 @@ $repo = Split-Path -Parent $PSScriptRoot
 $log = Join-Path $env:LOCALAPPDATA 'AIFinLab-autopull.log'
 
 $out = & git -C $repo pull --ff-only origin main 2>&1
-$line = '{0}  exit={1}  {2}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $LASTEXITCODE, (($out | ForEach-Object { "$_" }) -join ' | ')
+$gitExit = $LASTEXITCODE
+$line = '{0}  exit={1}  {2}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $gitExit, (($out | ForEach-Object { "$_" }) -join ' | ')
 Add-Content -Path $log -Value $line -Encoding utf8
 
 # 記錄檔只保留最近 200 行
 $lines = Get-Content -Path $log -Encoding utf8
 if ($lines.Count -gt 200) { $lines | Select-Object -Last 200 | Set-Content -Path $log -Encoding utf8 }
+
+# 把 git 的結束碼回傳給工作排程器，失敗時「上次執行結果」才會顯示錯誤
+exit $gitExit

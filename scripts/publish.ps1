@@ -18,7 +18,20 @@ function Invoke-Git {
 
 & (Join-Path $PSScriptRoot 'sync_lifecf.ps1')
 
-Invoke-Git -GitArguments @('add', '-A')
+# The house-price dashboard outputs are written only by the GitHub Action; never commit
+# local preview rebuilds of them (they would conflict with the bot's binary xlsx commits).
+$botOutputs = @('houseprice/index.html', 'houseprice/last_season.txt', 'houseprice/*.xlsx')
+$dirtyOutputs = & git -C $repoRoot status --porcelain -- @botOutputs
+if ($LASTEXITCODE -ne 0) {
+    throw "git status failed with exit code $LASTEXITCODE"
+}
+if ($dirtyOutputs) {
+    Write-Warning ("Skipping local changes to bot-owned house-price outputs (not committed):`n" +
+        ($dirtyOutputs -join "`n") +
+        "`nDiscard them with: git checkout -- houseprice/index.html houseprice/last_season.txt houseprice/*.xlsx")
+}
+
+Invoke-Git -GitArguments (@('add', '-A', '--', '.') + ($botOutputs | ForEach-Object { ":(exclude)$_" }))
 
 & git -C $repoRoot diff --cached --quiet
 $hasStagedChanges = $LASTEXITCODE -eq 1

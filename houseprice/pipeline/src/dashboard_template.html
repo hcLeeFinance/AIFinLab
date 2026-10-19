@@ -454,6 +454,8 @@ function renderCompare() {
   // 終點選最後完整年度時，順便畫出補登中的最新年度／季（空心點），但不列入期間計算
   const showPartial = cmp.end === DATA.lastFullYear;
   const isPartial = q => Number(q.slice(0, 4)) > DATA.lastFullYear;
+  // 空心「補登中」標示：年模式為最後完整年度之後的年；季模式只有 completeQuarter 之後的季（與上方磚塊一致）
+  const stillFiling = q => (q.length > 4 ? q > DATA.completeQuarter : isPartial(q));
   const inRange = q => {
     const y = Number(q.slice(0, 4));
     return y >= cmp.start && (y <= cmp.end || (showPartial && isPartial(q)));
@@ -479,7 +481,7 @@ function renderCompare() {
     const idxs = s.q.map((q, i) => (inRange(q) ? i : -1)).filter(i => i >= 0);
     const xs = idxs.map(i => s.q[i]);
     const ns = idxs.map(i => s.n[i]);
-    const hollow = xs.map((q, j) => ns[j] < 5 || isPartial(q));
+    const hollow = xs.map((q, j) => ns[j] < 5 || stillFiling(q));
     const u = unitOf(it);
     traces.push({
       x: xs,
@@ -487,7 +489,7 @@ function renderCompare() {
       name: cmpLabel(it), type: "scatter", mode: "lines+markers",
       line: { color, width: 2 },
       marker: { size: hollow.map(h => (h ? 8 : 6)), color: hollow.map(h => (h ? css("--surface-1") : color)), line: { color, width: 2 } },
-      customdata: xs.map((q, j) => [ns[j], s.med[idxs[j]], isPartial(q) ? "（補登中）" : ""]),
+      customdata: xs.map((q, j) => [ns[j], s.med[idxs[j]], stillFiling(q) ? "（補登中）" : ""]),
       hovertemplate: cmp.mode === "index"
         ? `${cmpLabel(it)}：<b>%{y:.1f}</b>（%{customdata[1]:.1f} ${u}，%{customdata[0]} 筆）%{customdata[2]}<extra></extra>`
         : `${cmpLabel(it)}：<b>%{y:.1f}</b> ${u}（%{customdata[0]} 筆）%{customdata[2]}<extra></extra>`,

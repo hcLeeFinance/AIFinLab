@@ -273,16 +273,16 @@ function calculateStrategy(priceData, IA, CFA, freq, isLumpSumMode = false, timi
     const wealthHistory = [];
     const flows = [];                 // XIRR 現金流
     const twReturns = [];             // 時間加權報酬（扣除資金投入的影響）
-    const navHistory = [1];           // 時間加權累積淨值，用於最大回撤
     let currentWealth = IA;
     let totalInvested = IA;
-    let nav = 1;
 
     if (IA > 0) flows.push({ t: 0, cf: -IA });
+    // cash：該時點剛投入、尚未承受價格波動的資金（策略最大回撤的分母要扣掉）
     wealthHistory.push({
         date: d0,
         wealth: IA,
-        invested: IA
+        invested: IA,
+        cash: 0
     });
 
     const n = priceData.length - 1;
@@ -297,6 +297,7 @@ function calculateStrategy(priceData, IA, CFA, freq, isLumpSumMode = false, timi
             const prev = wealthHistory[wealthHistory.length - 1];
             prev.wealth = currentWealth;
             prev.invested = totalInvested;
+            prev.cash += periodicInvest;
         }
 
         const base = currentWealth;
@@ -304,20 +305,21 @@ function calculateStrategy(priceData, IA, CFA, freq, isLumpSumMode = false, timi
         if (base > 0) {
             const tw = currentWealth / base - 1;
             twReturns.push(tw);
-            nav *= (1 + tw);
         }
-        navHistory.push(nav);
 
+        let cashNow = 0;
         if (!atStart && periodicInvest > 0) {
             currentWealth += periodicInvest;
             totalInvested += periodicInvest;
+            cashNow = periodicInvest;
             flows.push({ t: yearsBetween(d0, priceData[i].dateStr), cf: -periodicInvest });
         }
 
         wealthHistory.push({
             date: priceData[i].dateStr,
             wealth: currentWealth,
-            invested: totalInvested
+            invested: totalInvested,
+            cash: cashNow
         });
     }
 
@@ -334,11 +336,17 @@ function calculateStrategy(priceData, IA, CFA, freq, isLumpSumMode = false, timi
     const r_CAGR = solveXIRR(flows);
     const r_Vol = Math.sqrt(adjF) * std(twReturns);
 
-    let maxNav = -Infinity;
+    // 策略最大回撤：自損益高點以來的損益變化 ÷ 在場資金（高點時資產 + 高點後新投入的資金，
+    // 不含當期剛投入、尚未承受波動的資金）。單筆投入時等同一般的最大回撤；
+    // 定期定額不會被新投入資金掩蓋，也能反映前期資金少、虧損基數小的效果。
+    let peak = wealthHistory[0];
     let maxDD = 0;
-    for (let v of navHistory) {
-        if (v > maxNav) maxNav = v;
-        const dd = (v - maxNav) / maxNav;
+    for (const w of wealthHistory) {
+        const profit = w.wealth - w.invested;
+        if (profit > peak.wealth - peak.invested) { peak = w; continue; }
+        const atRisk = peak.wealth + (w.invested - peak.invested) - w.cash;
+        if (atRisk <= 0) continue;
+        const dd = (profit - (peak.wealth - peak.invested)) / atRisk;
         if (dd < maxDD) maxDD = dd;
     }
 
@@ -550,9 +558,8 @@ document.getElementById('btnRun').addEventListener('click', async () => {
                     <td>${formatPercent(sLS.maxLoss)}</td>
                 </tr>
                 <tr>
-                    <td>年化波動率 (Volatility)</td>
-                    <td>${formatPercent(sDCA.vol)}</td>
-                    <td>${formatPercent(sLS.vol)}</td>
+                    <td>標的年化波動率 (Volatility)</td>
+                    <td colspan="2" style="text-align:center;">${formatPercent(sLS.vol)}</td>
                 </tr>
                 <tr style="background-color:#fffbea; border-top:2px solid #edf2f7;">
                     <td><b>報酬風險比 (年化報酬 / Volatility)</b></td>
@@ -564,7 +571,8 @@ document.getElementById('btnRun').addEventListener('click', async () => {
         <div style="margin-top:12px; font-size:0.85em; color:#718096; line-height:1.6;">
             期間：${resampledData[0].dateStr} 至 ${resampledData[resampledData.length-1].dateStr}，共 ${resampledData.length - 1} 期；定期定額於每期${timingLabel}投入，幣別 ${CURRENCY}。<br>
             DCA 年化報酬為依實際投入日期計算的內部報酬率 (IRR)；單筆投入為複利年化報酬 (CAGR)。<br>
-            最大回撤與波動率以時間加權報酬計算，已排除新投入資金的影響，因此兩策略接近時代表承擔的是同一標的的價格風險；「帳面最大虧損」則顯示資產相對累積投入成本的最低點。<br>
+            最大回撤為「策略最大回撤」：自損益高點以來的損益變化 ÷ 當時在場的資金（高點時資產 + 之後新投入的資金），單筆投入時等同一般的最大回撤，定期定額則不會被新投入的資金掩蓋。「帳面最大虧損」為資產相對累積投入成本的最低點。<br>
+            波動率以時間加權報酬計算（排除資金投入的影響），兩種策略持有同一標的，因此只顯示一個標的波動率。<br>
             ${fetched.adjusted ? '價格採用還原股價 (Adj Close)，視同股利全數再投入。' : '<b>注意：此標的無還原股價，改用收盤價，未計入股利。</b>'}
             未計手續費與交易稅，並假設可買零股（任意股數）。
             ${fetched.jumps.length ? `<br><b style="color:#c53030;">資料警示：${fetched.jumps.join('、')} 單日價格變動超過 40%，可能是資料源未調整股票分割，回測結果（尤其最大回撤與年化報酬）可能失真，建議將開始日期設在該日之後。</b>` : ''}

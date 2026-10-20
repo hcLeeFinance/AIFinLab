@@ -1,4 +1,5 @@
-"""合併各季 CSV，篩選雙北住宅大樓／華廈／公寓，計算扣除車位後的淨單價；整理車位明細。"""
+"""合併各季 CSV，整理雙北五類住宅：中古大樓／華廈／公寓、新成屋、預售屋，計算扣除車位後的淨單價；整理車位明細。"""
+import csv
 import re
 from pathlib import Path
 
@@ -26,6 +27,10 @@ EXCLUDE_NOTE = re.compile(
     "急買急賣|債權債務|抵債|政府機關|協議價購|標售|標讓售|公共設施保留地|"
     "地上權|重建|重劃|都更|畸零地|合建|毛胚|信託"
 )
+# 預售屋：同樣的特殊交易排除規則，但不排除「預售屋」本身
+EXCLUDE_NOTE_PRESALE = re.compile(EXCLUDE_NOTE.pattern.replace("預售屋|", ""))
+# 中古屋與新成屋的屋齡分界（年）。未滿 1 年的成屋交易多為預售屋交屋過戶，一律不計
+NEW_MIN_AGE, OLD_MIN_AGE = 1, 3
 # 車位明細只排除會影響價格的關係交易
 EXCLUDE_NOTE_PARK = re.compile("親友|員工|特殊關係|親等|等親|親屬|夫妻|政府機關|協議價購|標售")
 
@@ -35,22 +40,30 @@ def _norm_cols(df):
     return df
 
 
-def _read(path):
-    return _norm_cols(pd.read_csv(path, encoding="utf-8-sig", skiprows=[1], dtype=str))
+def _read(path, lenient=False):
+    if not lenient:
+        return _norm_cols(pd.read_csv(path, encoding="utf-8-sig", skiprows=[1], dtype=str))
+    # 預售屋檔偶有未閉合的引號（如棟及號欄）或多一個逗號：不解析引號、欄位數不符的列略過並列出筆數
+    df = pd.read_csv(path, encoding="utf-8-sig", skiprows=[1], dtype=str, quoting=csv.QUOTE_NONE, on_bad_lines="skip")
+    n_lines = sum(1 for _ in open(path, encoding="utf-8-sig")) - 2
+    if n_lines > len(df):
+        print(f"   {path.parent.name}/{path.name}：{n_lines - len(df)} 列格式錯誤，略過")
+    return _norm_cols(df)
 
 
-def load_raw(raw_dir: Path):
+def load_raw(raw_dir: Path, kind="a"):
+    """kind="a" 成屋買賣、"b" 預售屋買賣。"""
     mains, parks = [], []
     done = [p for p in raw_dir.iterdir() if (p / ".done").exists()]
     for season_dir in sorted(done, key=lambda p: (int(p.name[:-2]), int(p.name[-1]))):
         for code, city in CITY.items():
-            f = season_dir / f"{code}_lvr_land_a.csv"
+            f = season_dir / f"{code}_lvr_land_{kind}.csv"
             if f.exists():
-                m = _read(f).assign(縣市=city, 來源季別=season_dir.name)
+                m = _read(f, lenient=kind == "b").assign(縣市=city, 來源季別=season_dir.name)
                 mains.append(m)
-            f = season_dir / f"{code}_lvr_land_a_park.csv"
+            f = season_dir / f"{code}_lvr_land_{kind}_park.csv"
             if f.exists():
-                parks.append(_read(f).assign(來源季別=season_dir.name))
+                parks.append(_read(f, lenient=kind == "b").assign(來源季別=season_dir.name))
     main = pd.concat(mains, ignore_index=True)
     park = pd.concat(parks, ignore_index=True)
     # 同一編號出現在多季（更正資料）時保留最新一季
@@ -104,13 +117,48 @@ def clean_houses(main, park, parking):
     funnel.append(("排除特殊交易備註", len(df)))
 
     # 預售屋交屋過戶在 2017 年前多半沒有備註，改用屋齡一致排除：完工未滿 1 年（含交易日早於完工、
-    # 即用簽約日登錄的預售案）一律不計，序列定義為中古屋。完工年月缺漏的交易無法判斷屋齡，
-    # 且占比逐年下降（2012 年約 9%、近年約 3%），保留會讓樣本組成隨時間漂移，一併排除
+    # 即用簽約日登錄的預售案）一律不計。完工年月缺漏的交易無法判斷屋齡，
+    # 且占比逐年下降（2012 年約 9%、近年約 3%），保留會讓樣本組成隨時間漂移，一併排除。
+    # 屋齡 3 年以上為中古屋，維持大樓／華廈／公寓三類；屋齡 1～3 年不分型態合併為「新成屋」一類
     built = _roc_date(df["建築完成年月"].fillna("").str.strip().str.ljust(7, "0").str[:5] + "01")
     age = (df["交易日期"] - built).dt.days / 365.25
-    df = df[age >= 1]
-    funnel.append(("排除屋齡未滿 1 年或不明（新成屋、預售交屋）", len(df)))
+    df = df[age >= NEW_MIN_AGE].copy()
+    funnel.append(("排除屋齡未滿 1 年或不明（預售交屋）", len(df)))
+    df["屋齡"] = age[df.index]
+    df["屋況"] = np.where(df["屋齡"] >= OLD_MIN_AGE, "中古屋", "新成屋")
+    df["建物類別"] = df["型態"]
+    df.loc[df["屋況"] == "新成屋", "型態"] = "新成屋"
+    df.loc[df["屋齡"] > 80, "屋齡"] = np.nan
+    return _price_and_trim(df, park, parking, funnel)
 
+
+def clean_presale(main, park, parking):
+    """預售屋買賣（b 檔）。交易日期是簽約日；沒有屋齡。"""
+    funnel = [("原始（雙北、去重後）", len(main))]
+    df = _common(main)
+    funnel.append(("交易日期有效", len(df)))
+    df = df[df["交易標的"].isin(TARGETS)]
+    funnel.append(("房地／房地+車位", len(df)))
+    df["型態"] = df["建物型態"].fillna("").map(lambda s: next((v for k, v in BTYPE.items() if s.startswith(k)), None))
+    df = df[df["型態"].notna()]
+    funnel.append(("大樓／華廈／公寓", len(df)))
+    use = df["主要用途"].fillna("")
+    df = df[use.str.contains("住") | use.str.startswith("見") | (use == "")]
+    funnel.append(("主要用途為住宅", len(df)))
+    n_bldg = _num(df["交易筆棟數"].str.extract(r"建物(\d+)")[0])
+    df = df[n_bldg == 1]
+    funnel.append(("單一建物交易", len(df)))
+    df = df[df.get("解約情形", pd.Series("", index=df.index)).fillna("").str.strip() == ""]
+    funnel.append(("排除已解約", len(df)))
+    df = df[~df["備註"].fillna("").str.contains(EXCLUDE_NOTE_PRESALE)]
+    funnel.append(("排除特殊交易備註", len(df)))
+    # 預售屋不分大樓／華廈／公寓合併為一類（九成以上是大樓）
+    df = df.assign(屋齡=np.nan, 屋況="預售屋", 建物類別=df["型態"], 型態="預售屋")
+    return _price_and_trim(df, park, parking, funnel)
+
+
+def _price_and_trim(df, park, parking, funnel):
+    """扣除車位價與車位面積得淨單價，再剔除極端值。成屋與預售屋共用。"""
     total = _num(df["總價元"])
     area = _num(df["建物移轉總面積平方公尺"])
     p_price = _num(df["車位總價元"]).fillna(0)
@@ -132,16 +180,13 @@ def clean_houses(main, park, parking):
 
     df = df[df["單價萬坪"].between(3, 600)]
     df["年"] = df["交易日期"].dt.year
-    q1 = df.groupby(["縣市", "行政區", "型態", "年"])["單價萬坪"].transform(lambda s: s.quantile(0.25))
-    q3 = df.groupby(["縣市", "行政區", "型態", "年"])["單價萬坪"].transform(lambda s: s.quantile(0.75))
+    g = df.groupby(["縣市", "行政區", "型態", "年"])["單價萬坪"]
+    q1, q3 = g.transform(lambda s: s.quantile(0.25)), g.transform(lambda s: s.quantile(0.75))
     iqr = q3 - q1
     df = df[df["單價萬坪"].between(q1 - 3 * iqr, q3 + 3 * iqr)]
     funnel.append(("剔除極端值", len(df)))
 
-    built = _roc_date(df["建築完成年月"].fillna("").str.strip().str.ljust(7, "0").str[:5] + "01")
-    df["屋齡"] = ((df["交易日期"] - built).dt.days / 365.25).where(lambda s: s.between(0, 80))
-
-    cols = ["縣市", "行政區", "型態", "交易日期", "單價萬坪", "淨總價萬", "淨坪數", "屋齡",
+    cols = ["縣市", "行政區", "型態", "屋況", "建物類別", "交易日期", "單價萬坪", "淨總價萬", "淨坪數", "屋齡",
             "總價元", "車位總價元", "車位價來源", "土地位置建物門牌", "移轉層次", "總樓層數", "備註", "編號", "來源季別"]
     return df[cols].sort_values("交易日期").reset_index(drop=True), pd.DataFrame(funnel, columns=["步驟", "筆數"])
 

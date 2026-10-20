@@ -60,6 +60,7 @@ select, button {
 .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
 .seg button { border: 0; border-radius: 0; background: var(--surface-1); }
 .seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+.seg button:disabled { color: var(--text-muted); opacity: 0.5; cursor: not-allowed; }
 .card {
   background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px;
   padding: 16px; margin-top: 16px;
@@ -83,6 +84,9 @@ select, button {
 .muted { color: var(--text-muted); font-size: 12px; }
 .cmp-table td .dot { margin-right: 6px; vertical-align: middle; }
 .hint { color: var(--text-muted); font-size: 12px; margin-top: 6px; }
+.warn { font-size: 12px; color: var(--text-secondary); border-left: 3px solid var(--s4); background: var(--surface-0); padding: 6px 10px; margin: 4px 0 8px; border-radius: 0 6px 6px 0; }
+.warn:empty { display: none; }
+.tag { font-size: 11px; color: var(--text-secondary); border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; margin-left: 4px; white-space: nowrap; }
 .cmp-table .um { display: none; }
 @media (max-width: 640px) { .cmp-table .n, .cmp-table .u { display: none; } .cmp-table .um { display: inline; } .cmp-table th, .cmp-table td { padding: 4px 5px; white-space: normal; } }
 .grid2 { display: grid; grid-template-columns: 1fr; gap: 0 16px; }
@@ -95,7 +99,7 @@ th:first-child, td:first-child { text-align: left; }
 th { position: sticky; top: 0; background: var(--surface-1); color: var(--text-secondary); font-weight: 500; }
 .notes { color: var(--text-secondary); font-size: 12px; }
 .notes li { margin: 2px 0; }
-@media (max-width: 640px) { .chart { height: 340px; } .chart.tall { height: 900px; } }
+@media (max-width: 640px) { .chart { height: 340px; } .chart.tall { height: 900px; } .filters { position: static; } }
 </style>
 </head>
 <body>
@@ -109,6 +113,8 @@ th { position: sticky; top: 0; background: var(--surface-1); color: var(--text-s
   <div class="filters">
     <label>縣市<select id="city"></select></label>
     <label>行政區<select id="dist"></select></label>
+    <label>類別<span class="seg" id="types" role="group" aria-label="類別（可複選）"></span></label>
+    <label>細分<select id="sub"></select></label>
     <label>指標
       <span class="seg" id="metric">
         <button data-v="中位數" aria-pressed="true">中位數</button>
@@ -122,13 +128,15 @@ th { position: sticky; top: 0; background: var(--surface-1); color: var(--text-s
         <button data-v="12" aria-pressed="false">近 3 年</button>
       </span>
     </label>
+    <span class="muted" id="seg-status" role="status"></span>
   </div>
 
   <div class="tiles" id="tiles"></div>
 
   <section class="card">
     <h2 id="t-house"></h2>
-    <div class="sub">扣除車位後的房屋單價，萬元／坪，依交易日期分季。陰影是 25～75 百分位；空心點代表該季成交少於 5 筆。</div>
+    <div class="sub">扣除車位後的房屋單價，萬元／坪，依交易日期分季（預售屋為簽約日）。陰影是 25～75 百分位（只畫成交 5 筆以上的季）；空心點代表該季成交少於 5 筆，沒有成交的季折線斷開。</div>
+    <div class="warn" id="house-warn" role="note"></div>
     <div id="c-house" class="chart"></div>
     <div id="c-count" class="chart short"></div>
   </section>
@@ -148,10 +156,10 @@ th { position: sticky; top: 0; background: var(--surface-1); color: var(--text-s
 
   <section class="card" id="cmp">
     <h2>行政區比較</h2>
-    <div class="sub">最多 4 條線，每條線各自選行政區與型態（臺北、新北可混選，也可以同一區比較不同型態），比較單價走勢與指定期間的年化報酬率。</div>
+    <div class="sub">最多 4 條線，每條線各自選行政區、類別與細分（臺北、新北可混選，也可以同一區比較不同類別，例如預售屋對中古大樓），比較單價走勢與指定期間的年化報酬率。</div>
     <div class="cmp-controls">
       <label>加入比較
-        <span style="display:flex;gap:6px;flex-wrap:wrap"><select id="cmp-pick"></select><select id="cmp-pick-type"></select><button id="cmp-add">加入</button></span>
+        <span style="display:flex;gap:6px;flex-wrap:wrap"><select id="cmp-pick"></select><select id="cmp-pick-type"></select><select id="cmp-pick-sub" aria-label="細分"></select><button id="cmp-add">加入</button></span>
       </label>
       <label>起點年<select id="cmp-start"></select></label>
       <label>終點年<select id="cmp-end"></select></label>
@@ -165,7 +173,7 @@ th { position: sticky; top: 0; background: var(--surface-1); color: var(--text-s
   </section>
 
   <details class="card">
-    <summary>資料表（目前選擇的行政區）</summary>
+    <summary>資料表（目前選擇的行政區與屋況）</summary>
     <div class="tablewrap"><table id="tbl"></table></div>
   </details>
 
@@ -177,11 +185,87 @@ th { position: sticky; top: 0; background: var(--surface-1); color: var(--text-s
 
 <script>
 const DATA = __DATA__;
-const TYPES = ["大樓", "華廈", "公寓"];
-const TYPE_VAR = { 大樓: "--s1", 華廈: "--s2", 公寓: "--s3" };
+// 五類：大樓／華廈／公寓為中古屋（屋齡 3 年以上）；新成屋（屋齡 1～3 年）與預售屋不分型態各自一類
+const TYPES = ["大樓", "華廈", "公寓", "新成屋", "預售屋"];
+const OLD_TYPES = ["大樓", "華廈", "公寓"];
+const TYPE_VAR = { 大樓: "--s1", 華廈: "--s2", 公寓: "--s3", 新成屋: "--s4", 預售屋: "--s5" };
 const PARK_ORDER = ["坡道平面", "坡道機械", "升降平面", "升降機械", "塔式車位", "一樓平面", "其他"];
 const PARK_VAR = ["--s1", "--s2", "--s3", "--s4", "--s5", "--s6", "--s7"];
-const state = { city: "臺北市", dist: "全市", metric: "中位數", range: "all", rankType: "大樓" };
+const state = { city: "臺北市", dist: "全市", metric: "中位數", range: "all", rankType: "大樓", sub: "全部", types: new Set(TYPES) };
+
+// ---------- 細分（屋齡或坪數，擇一不交叉） ----------
+// 屋齡 1～3 年只有新成屋；3 年以上的級距只有大樓／華廈／公寓；坪數級距五類都有
+const NEW_AGE = "屋齡1–3年";
+const AGE_SUBS = ["屋齡3–10年", "屋齡10–20年", "屋齡20–30年", "屋齡30年以上"];
+const SIZE_SUBS = ["未滿20坪", "20–35坪", "35–50坪", "50坪以上"];
+// 某類別在某細分下對應的資料 key 末段；不適用回傳 null
+function subFor(type, sub) {
+  if (sub === "全部" || SIZE_SUBS.includes(sub)) return sub;
+  if (sub === NEW_AGE) return type === "新成屋" ? "全部" : null;
+  return OLD_TYPES.includes(type) ? sub : null;
+}
+const needsSegments = sub => sub !== "全部" && sub !== NEW_AGE;
+const subSuffix = sub => (sub === "全部" ? "" : "・" + sub);
+// type 有值時，不適用該類別的選項停用（比較區用）
+function subOptions(sub, type) {
+  const opt = x => `<option value="${x}"${x === sub ? " selected" : ""}${type && subFor(type, x) == null ? " disabled" : ""}>${x}</option>`;
+  return opt("全部") +
+    `<optgroup label="屋齡">${[NEW_AGE, ...AGE_SUBS].map(opt).join("")}</optgroup>` +
+    `<optgroup label="淨坪數">${SIZE_SUBS.map(opt).join("")}</optgroup>`;
+}
+
+// 序列以索引 i 對應季別或年份，載入時還原成標籤 q
+const YEARS = DATA.years.map(String);
+function decode(obj, labels) { for (const k in obj) obj[k].q = obj[k].i.map(i => labels[i]); return obj; }
+decode(DATA.house, DATA.quarters); decode(DATA.park, DATA.quarters);
+decode(DATA.houseYear, YEARS); decode(DATA.parkYear, YEARS);
+
+// 屋齡／坪數細分放在 segments.js，第一次用到時才載入
+let segPromise = null;
+function ensureSegments() {
+  if (!segPromise) {
+    segPromise = new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src = `segments.js?v=${DATA.segVersion}`;
+      s.onload = () => {
+        const x = window.HP_SEGMENTS;
+        Object.assign(DATA.house, decode(x.house, DATA.quarters));
+        Object.assign(DATA.houseYear, decode(x.houseYear, YEARS));
+        Object.assign(DATA.recent.house, x.recent);
+        resolve();
+      };
+      s.onerror = () => { segPromise = null; reject(new Error("load")); };
+      document.head.appendChild(s);
+    });
+  }
+  return segPromise;
+}
+function withSegments(sub, fn) {
+  const status = document.getElementById("seg-status");
+  if (!needsSegments(sub)) { fn(); return; }
+  status.textContent = "載入細分資料中…";
+  ensureSegments().then(() => { status.textContent = ""; fn(); })
+    .catch(() => { status.textContent = "細分資料載入失敗，請重新整理頁面"; });
+}
+// 預售屋 2021-07 實價登錄 2.0 斷點：類別軸上畫在該季左緣（年模式為該年）的虛線
+function breakMarks(cats, at) {
+  const i = cats.indexOf(at);
+  if (i < 0) return { shapes: [], annotations: [] };
+  const x = at.length > 4 ? i - 0.5 : i;
+  return {
+    shapes: [{ type: "line", xref: "x", yref: "paper", x0: x, x1: x, y0: 0, y1: 1, line: { color: css("--text-muted"), width: 1.5, dash: "dash" } }],
+    annotations: [{ x, y: 1, xref: "x", yref: "paper", xanchor: "left", yanchor: "top", text: " 實價登錄 2.0", showarrow: false, font: { size: 11, color: css("--text-muted") } }],
+  };
+}
+const THIN_N = 10;      // 主圖：每季成交筆數中位數低於此值時加註樣本少
+const THIN_YEAR_N = 40; // 比較區：起點或終點年成交低於此值時加註（約等於每季 10 筆）
+const hkey = (city, dist, type, sub = state.sub) => {
+  const s = subFor(type, sub);
+  return s == null ? null : [city, dist, type, s].join("|");
+};
+// 目前細分適用的類別（排名按鈕用）；主圖再依篩選列勾選的類別過濾
+const applicableTypes = () => TYPES.filter(t => subFor(t, state.sub) != null);
+const activeTypes = () => applicableTypes().filter(t => state.types.has(t));
 
 const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const fmt = (v, d = 1) => v == null || isNaN(v) ? "–" : v.toLocaleString("zh-TW", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -211,6 +295,14 @@ function clip(series) {
   const idx = series.q.map((q, i) => keep.has(q) ? i : -1).filter(i => i >= 0);
   const out = {};
   for (const k in series) out[k] = idx.map(i => series[k][i]);
+  return out;
+}
+// 補上沒有成交的季（null），讓折線在缺季處斷開，不會把相隔多年的點直接連起來
+function fillGaps(s) {
+  const pos = new Map(s.q.map((q, i) => [q, i]));
+  const qs = visibleQuarters().filter(q => q >= s.q[0] && q <= s.q[s.q.length - 1]);
+  const out = { q: qs };
+  for (const k of ["med", "mean", "p25", "p75", "n"]) out[k] = qs.map(q => (pos.has(q) ? s[k][pos.get(q)] : null));
   return out;
 }
 const key = (...p) => p.join("|");
@@ -247,6 +339,18 @@ function fillSelectors() {
   opts();
   city.onchange = () => { state.city = city.value; state.dist = "全市"; opts(); render(); };
   dist.onchange = () => { state.dist = dist.value; render(); };
+  const sub = document.getElementById("sub");
+  sub.innerHTML = subOptions(state.sub);
+  sub.onchange = () => { state.sub = sub.value; withSegments(state.sub, renderMain); };
+  // 類別可複選，至少保留一類
+  const types = document.getElementById("types");
+  types.innerHTML = TYPES.map(t => `<button data-v="${t}" aria-pressed="true">${t}</button>`).join("");
+  types.onclick = e => {
+    const b = e.target.closest("button"); if (!b || b.disabled) return;
+    const t = b.dataset.v;
+    if (state.types.has(t)) { if (state.types.size > 1) state.types.delete(t); } else state.types.add(t);
+    renderMain();
+  };
   for (const [id, prop] of [["metric", "metric"], ["range", "range"]]) {
     const seg = document.getElementById(id);
     seg.onclick = e => {
@@ -266,9 +370,9 @@ function fillSelectors() {
 
 function renderTiles() {
   const el = document.getElementById("tiles");
-  el.innerHTML = TYPES.map(t => {
-    const s = DATA.house[key(state.city, state.dist, t)];
-    const r = DATA.recent.house[key(state.city, state.dist, t)];
+  el.innerHTML = activeTypes().map(t => {
+    const s = DATA.house[hkey(state.city, state.dist, t)];
+    const r = DATA.recent.house[hkey(state.city, state.dist, t)];
     let yoy = "";
     if (s) {
       // 用季別標籤找去年同季（稀疏行政區會缺季）；最新交易季仍在補登，改用前一個完整季
@@ -279,9 +383,9 @@ function renderTiles() {
         yoy = `${q} 較去年同季 ${pct >= 0 ? "+" : ""}${fmt(pct)}%`;
       }
     }
-    return `<div class="tile"><div class="k"><span class="dot" style="background:var(${TYPE_VAR[t]})"></span>${t}・近 4 季中位數</div>
-      <div class="v">${r ? fmt(r.med) : "–"}<span style="font-size:13px;font-weight:400;color:var(--text-secondary)"> 萬/坪</span></div>
-      <div class="d">${r ? r.n.toLocaleString() + " 筆" : "無成交"}${yoy ? "・" + yoy : ""}</div></div>`;
+    return `<div class="tile"><div class="k"><span class="dot" style="background:var(${TYPE_VAR[t]})"></span>${t}${subSuffix(state.sub)}・近 4 季中位數</div>
+      <div class="v"${r && r.n < 5 ? ' style="color:var(--text-muted)"' : ""}>${r ? fmt(r.med) : "–"}<span style="font-size:13px;font-weight:400;color:var(--text-secondary)"> 萬/坪</span></div>
+      <div class="d">${r ? r.n.toLocaleString() + " 筆" + (r.n < 5 ? "・樣本不足，僅供參考" : "") : "無成交"}${yoy ? "・" + yoy : ""}</div></div>`;
   }).join("") + (() => {
     const r = DATA.recent.park[key(state.city, state.dist, "全部")];
     return `<div class="tile"><div class="k"><span class="dot" style="background:var(--neutral)"></span>車位・近 4 季中位數</div>
@@ -292,14 +396,21 @@ function renderTiles() {
 
 function renderHouse() {
   const field = state.metric === "中位數" ? "med" : "mean";
-  const traces = [], counts = [];
-  TYPES.forEach(t => {
-    const raw = DATA.house[key(state.city, state.dist, t)];
+  const traces = [], counts = [], thin = [];
+  activeTypes().forEach(t => {
+    const raw = DATA.house[hkey(state.city, state.dist, t)];
     if (!raw) return;
-    const s = clip(raw), color = css(TYPE_VAR[t]);
+    const c = clip(raw), s = fillGaps(c), color = css(TYPE_VAR[t]);
+    // 每季成交筆數的中位數（沒有成交的季算 0）少於 10 筆，視為樣本少
+    const ns = s.n.map(n => n || 0).sort((a, b) => a - b);
+    const typical = ns.length ? ns[Math.floor((ns.length - 1) / 2)] : 0;
+    if (typical < THIN_N) thin.push({ t, typical });
     if (state.metric === "中位數") {
-      traces.push({ x: s.q, y: s.p75, type: "scatter", mode: "lines", line: { width: 0 }, hoverinfo: "skip", showlegend: false, legendgroup: t });
-      traces.push({ x: s.q, y: s.p25, type: "scatter", mode: "lines", line: { width: 0 }, fill: "tonexty", fillcolor: hexA(color, 0.14), hoverinfo: "skip", showlegend: false, legendgroup: t });
+      // 百分位陰影只畫 ≥5 筆的季，且不插空值（tonexty 遇到空值會填錯區塊）
+      const ok = c.n.map((n, i) => (n >= 5 ? i : -1)).filter(i => i >= 0);
+      const band = { q: ok.map(i => c.q[i]), p25: ok.map(i => c.p25[i]), p75: ok.map(i => c.p75[i]) };
+      traces.push({ x: band.q, y: band.p75, type: "scatter", mode: "lines", line: { width: 0 }, hoverinfo: "skip", showlegend: false, legendgroup: t });
+      traces.push({ x: band.q, y: band.p25, type: "scatter", mode: "lines", line: { width: 0 }, fill: "tonexty", fillcolor: hexA(color, 0.14), hoverinfo: "skip", showlegend: false, legendgroup: t });
     }
     traces.push({
       x: s.q, y: s[field], name: t, legendgroup: t, type: "scatter", mode: "lines+markers",
@@ -310,9 +421,20 @@ function renderHouse() {
     });
     counts.push({ x: s.q, y: s.n, name: t, type: "bar", marker: { color, line: { color: css("--surface-1"), width: 1 } }, hovertemplate: `${t}：%{y} 筆<extra></extra>`, showlegend: false });
   });
-  document.getElementById("t-house").textContent = `${state.city}${state.dist === "全市" ? "（全市）" : state.dist}・房屋單價走勢`;
-  Plotly.react("c-house", traces, layoutBase(Object.assign({ xaxis: timeAxis(), yaxis: Object.assign(layoutBase().yaxis, { title: { text: "萬元/坪" }, rangemode: "tozero" }) }, partialShade())), CFG);
-  Plotly.react("c-count", counts, layoutBase(Object.assign({ barmode: "stack", bargap: 0.15, xaxis: timeAxis(), yaxis: Object.assign(layoutBase().yaxis, { title: { text: "成交筆數" } }), shapes: partialShade().shapes })), CFG);
+  const proj = thin.filter(x => x.t === "新成屋" || x.t === "預售屋").map(x => x.t);
+  document.getElementById("house-warn").textContent = thin.length
+    ? `樣本少：${thin.map(x => `${x.t}（${x.typical ? `每季約 ${x.typical} 筆` : "多數季沒有成交"}）`).join("、")}。少量成交的中位數會隨個別物件大幅跳動` +
+      (proj.length ? `，${proj.join("、")}的成交又常集中在一兩個建案，走勢主要反映建案地段、坪數的組成變化，不是同樣房子的漲跌` : "") +
+      "，請以全市或年度資料為主。"
+    : "";
+  document.getElementById("t-house").textContent = `${state.city}${state.dist === "全市" ? "（全市）" : state.dist}・房屋單價走勢${subSuffix(state.sub)}`;
+  const ps = partialShade();
+  const br = activeTypes().includes("預售屋") ? breakMarks(visibleQuarters(), DATA.presaleBreak) : { shapes: [], annotations: [] };
+  const ann = [...ps.annotations, ...br.annotations];
+  if (!traces.length) ann.push({ xref: "paper", yref: "paper", x: 0.5, y: 0.5, showarrow: false,
+    text: activeTypes().length ? "沒有符合條件的成交" : `所選類別沒有「${state.sub}」的細分，請改選類別或細分`, font: { size: 14, color: css("--text-secondary") } });
+  Plotly.react("c-house", traces, layoutBase({ xaxis: timeAxis(), yaxis: Object.assign(layoutBase().yaxis, { title: { text: "萬元/坪" }, rangemode: "tozero" }), shapes: [...ps.shapes, ...br.shapes], annotations: ann }), CFG);
+  Plotly.react("c-count", counts, layoutBase({ barmode: "stack", bargap: 0.15, xaxis: timeAxis(), yaxis: Object.assign(layoutBase().yaxis, { title: { text: "成交筆數" } }), shapes: [...ps.shapes, ...br.shapes] }), CFG);
 }
 
 function renderPark() {
@@ -334,11 +456,18 @@ function renderPark() {
 }
 
 function renderRank() {
+  // 細分不適用的類別（如屋齡級距下的預售屋）按鈕停用，並改選第一個可用類別
+  const act = applicableTypes();
+  if (!act.includes(state.rankType)) state.rankType = act[0];
+  document.querySelectorAll("#rank-type button").forEach(b => {
+    b.disabled = !act.includes(b.dataset.v);
+    b.setAttribute("aria-pressed", b.dataset.v === state.rankType);
+  });
   const t = state.rankType, color = css(TYPE_VAR[t]);
-  const rows = DATA.districts[state.city].map(d => ({ d, r: DATA.recent.house[key(state.city, d, t)] }))
+  const rows = DATA.districts[state.city].map(d => ({ d, r: DATA.recent.house[hkey(state.city, d, t)] }))
     .filter(x => x.r && x.r.n >= 5).sort((a, b) => a.r.med - b.r.med);
-  const cityR = DATA.recent.house[key(state.city, "全市", t)];
-  document.getElementById("t-rank").textContent = `${state.city}各行政區排名・${t}`;
+  const cityR = DATA.recent.house[hkey(state.city, "全市", t)];
+  document.getElementById("t-rank").textContent = `${state.city}各行政區排名・${t}${subSuffix(state.sub)}`;
   document.getElementById("rank-sub").textContent = `${DATA.recentLabel} 成交單價中位數（萬元/坪），少於 5 筆的行政區不列入。點長條可切換到該行政區。`;
   const shapes = cityR ? [{ type: "line", x0: cityR.med, x1: cityR.med, y0: -0.5, y1: rows.length - 0.5, line: { color: css("--text-muted"), width: 1, dash: "dot" } }] : [];
   const ann = cityR ? [{ x: cityR.med, y: rows.length - 0.5, yanchor: "bottom", text: `全市 ${fmt(cityR.med)}`, showarrow: false, font: { size: 11, color: css("--text-secondary") } }] : [];
@@ -362,10 +491,10 @@ function renderRank() {
 function renderTable() {
   const qs = new Set();
   const get = {};
-  TYPES.forEach(t => { const s = DATA.house[key(state.city, state.dist, t)]; if (s) s.q.forEach((q, i) => { qs.add(q); get[t + q] = [s.med[i], s.n[i]]; }); });
+  activeTypes().forEach(t => { const s = DATA.house[hkey(state.city, state.dist, t)]; if (s) s.q.forEach((q, i) => { qs.add(q); get[t + q] = [s.med[i], s.n[i]]; }); });
   const p = DATA.park[key(state.city, state.dist, "全部")];
   if (p) p.q.forEach((q, i) => { qs.add(q); get["車位" + q] = [p.med[i], p.n[i]]; });
-  const cols = [...TYPES, "車位"];
+  const cols = [...activeTypes(), "車位"];
   const head = `<tr><th>交易季</th>${cols.map(c => `<th>${c}中位數</th><th>${c}筆數</th>`).join("")}</tr>`;
   const body = [...qs].sort().reverse().map(q => `<tr><td>${q}</td>${cols.map(c => {
     const v = get[c + q]; return `<td>${v ? fmt(v[0], c === "車位" ? 0 : 1) : "–"}</td><td>${v ? v[1] : "–"}</td>`;
@@ -376,19 +505,24 @@ function renderTable() {
 // ---------- 行政區比較 ----------
 // 每條線 = 行政區 × 型態；顏色在加入時指定槽位、之後固定（移除別條線不會換色）
 const CMP_SLOTS = ["--s1", "--s2", "--s3", "--s4"];
-const CMP_TYPES = ["大樓", "華廈", "公寓", "車位"];
+const CMP_TYPES = [...TYPES, "車位"];
 const cmp = {
-  items: [{ city: "臺北市", dist: "松山區", type: "大樓", slot: 0 }, { city: "新北市", dist: "三重區", type: "大樓", slot: 1 }],
+  items: [{ city: "臺北市", dist: "松山區", type: "大樓", sub: "全部", slot: 0 },
+          { city: "新北市", dist: "三重區", type: "大樓", sub: "全部", slot: 1 }],
   unit: "year", mode: "price", start: DATA.firstFullYear, end: DATA.lastFullYear,
+  pickSub: "全部",
 };
 const isPark = it => it.type === "車位";
 const unitOf = it => (isPark(it) ? "萬元/個" : "萬元/坪");
-const cmpLabel = it => `${it.dist === "全市" ? it.city + "（全市）" : it.city.slice(0, 2) + "・" + it.dist}・${it.type}`;
+const cmpLabel = it => `${it.dist === "全市" ? it.city + "（全市）" : it.city.slice(0, 2) + "・" + it.dist}・${it.type}` +
+  (isPark(it) ? "" : subSuffix(it.sub));
 function cmpSeries(it, unit) {
-  const k = key(it.city, it.dist, isPark(it) ? "全部" : it.type);
-  if (unit === "year") return (isPark(it) ? DATA.parkYear : DATA.houseYear)[k];
-  return (isPark(it) ? DATA.park : DATA.house)[k];
+  if (isPark(it)) return (unit === "year" ? DATA.parkYear : DATA.park)[key(it.city, it.dist, "全部")];
+  return (unit === "year" ? DATA.houseYear : DATA.house)[hkey(it.city, it.dist, it.type, it.sub)];
 }
+// 預售屋的起點年早於實價登錄 2.0 生效的隔年，起終點樣本基礎不同
+const breakYear = Number(DATA.presaleBreak.slice(0, 4));
+const crossesBreak = it => it.type === "預售屋" && cmp.start <= breakYear;
 function yearVal(it, y) {
   const s = cmpSeries(it, "year");
   if (!s) return null;
@@ -411,14 +545,33 @@ function setupCompare() {
   pick.value = "臺北市|大安區";
   pickType.innerHTML = CMP_TYPES.map(t => `<option>${t}</option>`).join("");
   pickType.value = "大樓";  // 之後保留使用者上次選的型態
+  const pickSubEl = document.getElementById("cmp-pick-sub");
+  const pickSync = () => {
+    const t = pickType.value;
+    // 換類別後原細分不適用就回到「全部」；車位沒有細分
+    if (t !== "車位" && subFor(t, cmp.pickSub) == null) cmp.pickSub = "全部";
+    pickSubEl.innerHTML = subOptions(cmp.pickSub, t === "車位" ? null : t);
+    pickSubEl.disabled = t === "車位";
+  };
+  pickSync();
+  pickType.onchange = pickSync;
+  pickSubEl.onchange = () => { cmp.pickSub = pickSubEl.value; };
   document.getElementById("cmp-add").onclick = () => {
     if (!pick.value) return;
     const [city, dist] = pick.value.split("|");
     const type = pickType.value;
-    if (cmp.items.length >= 4 || cmp.items.some(x => x.city === city && x.dist === dist && x.type === type)) return;
-    const used = new Set(cmp.items.map(x => x.slot));
-    cmp.items.push({ city, dist, type, slot: [0, 1, 2, 3].find(i => !used.has(i)) });
-    renderCompare();
+    // 新成屋選「屋齡1–3年」等同全部
+    const sub = type === "車位" ? "全部" : subFor(type, cmp.pickSub);
+    if (sub == null) return;
+    const blocked = () => cmp.items.length >= 4 ||
+      cmp.items.some(x => x.city === city && x.dist === dist && x.type === type && x.sub === sub);
+    if (blocked()) return;
+    withSegments(sub, () => {
+      if (blocked()) return;  // 載入期間可能重複點擊
+      const used = new Set(cmp.items.map(x => x.slot));
+      cmp.items.push({ city, dist, type, sub, slot: [0, 1, 2, 3].find(i => !used.has(i)) });
+      renderCompare();
+    });
   };
   document.getElementById("cmp-chips").onclick = e => {
     const b = e.target.closest("button[data-i]");
@@ -512,6 +665,9 @@ function renderCompare() {
   const shapes = cmp.mode === "index" && !mixedUnits
     ? [{ type: "line", xref: "paper", x0: 0, x1: 1, y0: 100, y1: 100, line: { color: css("--text-muted"), width: 1, dash: "dot" } }]
     : [];
+  const hasPresale = cmp.items.some(it => it.type === "預售屋");
+  const br = hasPresale && !mixedUnits ? breakMarks(cats, cmp.unit === "year" ? String(breakYear) : DATA.presaleBreak) : { shapes: [], annotations: [] };
+  shapes.push(...br.shapes);
   const narrow = document.getElementById("c-cmp").clientWidth < 700;
   const annotations = mixedUnits ? [{
     xref: "paper", yref: "paper", x: 0.5, y: 0.5, showarrow: false, align: "center",
@@ -519,7 +675,7 @@ function renderCompare() {
       ? "車位（萬元/個）和房屋（萬元/坪）<br>單位不同，無法放在同一張單價圖。<br>請切換到上方的<br>「指數（起點年＝100）」比較漲幅。"
       : "車位（萬元/個）和房屋（萬元/坪）單位不同，無法放在同一張單價圖比較。<br>請切換到上方的「指數（起點年＝100）」比較漲幅。",
     font: { size: narrow ? 12 : 14, color: css("--text-secondary") },
-  }] : [];
+  }] : [...br.annotations];
   Plotly.react("c-cmp", traces, layoutBase({
     shapes, annotations,
     xaxis: Object.assign(layoutBase().xaxis, {
@@ -539,21 +695,35 @@ function renderCompare() {
     || '<span class="muted">尚未選擇，請從上方加入。</span>';
 
   const pct = v => (v == null ? "–" : `${v >= 0 ? "+" : ""}${fmt(v)}%`);
-  const cell = (it, v) => (v ? `${fmt(v.med, isPark(it) ? 0 : 1)} <span class="muted n">（${v.n} 筆）</span>` : "–");
+  const cell = (it, v) => (v ? `${fmt(v.med, isPark(it) ? 0 : 1)} <span class="muted n">（${v.n} 筆）</span>` +
+    (v.n >= 5 && v.n < THIN_YEAR_N ? '<span class="tag">樣本少</span>' : "") : "–");
+  const thinRows = rows.filter(r => [r.b, r.e].some(v => v && v.n >= 5 && v.n < THIN_YEAR_N)).map(r => cmpLabel(r.it));
   document.getElementById("cmp-table").innerHTML =
     `<thead><tr><th>比較項目</th><th class="u">單位</th><th>${cmp.start} 年中位數</th><th>${cmp.end} 年中位數</th><th>${yrs} 年總漲幅</th><th>年化報酬率<br><span class="muted">（僅房價）</span></th></tr></thead><tbody>` +
     rows.map(r => `<tr><td><span class="dot" style="background:${r.color}"></span>${cmpLabel(r.it)}<span class="muted um"><br>${unitOf(r.it)}</span></td><td class="muted u">${unitOf(r.it)}</td><td>${cell(r.it, r.b)}</td><td>${cell(r.it, r.e)}</td>` +
-      (r.ok ? `<td>${pct(r.total)}</td><td><b>${pct(r.cagr)}</b></td>`
+      (r.ok ? `<td>${pct(r.total)}${crossesBreak(r.it) ? " †" : ""}</td><td><b>${pct(r.cagr)}</b>${crossesBreak(r.it) ? " †" : ""}</td>`
             : `<td colspan="2" class="muted">樣本不足（起點或終點年少於 5 筆）</td>`) + "</tr>").join("") + "</tbody>";
 
   const dropped = rows.filter(r => cmp.mode === "index" && !r.baseOk && !r.it.empty).map(r => cmpLabel(r.it));
   document.getElementById("cmp-hint").textContent =
     "年度數值為當年全部成交的中位數。年化報酬率只計房價變動，不含租金收益。" +
     `${DATA.lastFullYear + 1} 年仍在補登，以空心點標示，不列入期間計算。` +
-    (dropped.length ? `指數模式下，${dropped.join("、")} 在 ${cmp.start} 年成交少於 5 筆，沒有可靠的基期，未畫出。` : "");
+    (dropped.length ? `指數模式下，${dropped.join("、")} 在 ${cmp.start} 年成交少於 5 筆，沒有可靠的基期，未畫出。` : "") +
+    (rows.some(r => crossesBreak(r.it))
+      ? `† 預售屋在 ${breakYear} 年 7 月實價登錄 2.0 前只有代銷案件、且延後申報，起點年在此之前的漲幅混合了兩種申報制度，僅供參考。` : "") +
+    (thinRows.length ? `「樣本少」：${thinRows.join("、")} 的起點或終點年成交少於 ${THIN_YEAR_N} 筆，中位數容易被個別物件或建案左右，漲幅僅供參考。` : "");
 }
 
-function render() { renderTiles(); renderHouse(); renderPark(); renderRank(); renderTable(); renderCompare(); }
+function syncTypeButtons() {
+  const ok = applicableTypes();
+  document.querySelectorAll("#types button").forEach(b => {
+    b.setAttribute("aria-pressed", state.types.has(b.dataset.v));
+    b.disabled = !ok.includes(b.dataset.v);
+    b.title = b.disabled ? "目前的細分不適用此類別" : "";
+  });
+}
+function renderMain() { syncTypeButtons(); renderTiles(); renderHouse(); renderRank(); renderTable(); }
+function render() { renderMain(); renderPark(); renderCompare(); }
 
 document.getElementById("meta").textContent =
   `資料來源：內政部不動產成交案件實際資訊（實價登錄）・成交日期 ${DATA.quarters[0]}～${DATA.quarters[DATA.quarters.length - 1]}・資料更新至 ${DATA.lastSeason} 期`;

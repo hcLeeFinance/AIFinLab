@@ -15,9 +15,10 @@ PIPE = Path(__file__).resolve().parent
 SITE = PIPE.parent  # houseprice/
 sys.path.insert(0, str(PIPE / "src"))
 
-from aggregate import aggregate_houses, aggregate_parking  # noqa: E402
-from clean import clean_houses, clean_parking, load_raw  # noqa: E402
-from download import download_all  # noqa: E402
+import pandas as pd  # noqa: E402
+from aggregate import aggregate_houses, aggregate_parking, expand_segments  # noqa: E402
+from clean import clean_houses, clean_parking, clean_presale, load_raw  # noqa: E402
+from download import download_all, is_done  # noqa: E402
 from report import build_dashboard, build_excel  # noqa: E402
 
 PLOTLY_TAG = '<script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>'
@@ -51,6 +52,9 @@ def main():
     missing = sorted(set(expected) - set(seasons), key=key)
     if missing:
         sys.exit(f"錯誤：季檔不連續，缺少 {', '.join(missing)}，停止更新")
+    stale = [s for s in seasons if not is_done(raw / s)]
+    if stale:
+        sys.exit(f"錯誤：{len(stale)} 季是舊版下載（缺預售屋檔），請不加 --no-download 執行以補抓")
     if published and key(last_season) < key(published):
         sys.exit(f"錯誤：最新季別 {last_season} 早於已發布的 {published}，下載可能中斷，停止更新")
 
@@ -62,17 +66,24 @@ def main():
     main_df, park_df = load_raw(raw)
     parking = clean_parking(main_df, park_df)
     houses, funnel = clean_houses(main_df, park_df, parking)
+    # 預售屋併入總價的車位，用預售屋自己的車位成交價估算（預售車位行情與成屋不同）
+    main_b, park_b = load_raw(raw, "b")
+    presale, funnel_b = clean_presale(main_b, park_b, clean_parking(main_b, park_b))
+    funnel = pd.concat([funnel.assign(資料="成屋"), funnel_b.assign(資料="預售屋")], ignore_index=True)[["資料", "步驟", "筆數"]]
     print(funnel.to_string(index=False))
     print(f"   車位明細 {len(parking):,} 個")
-    houses.to_csv(proc / "houses.csv.gz", index=False, encoding="utf-8-sig")
+    homes = pd.concat([houses, presale], ignore_index=True)
+    print(homes.groupby(["屋況", "型態"]).size().to_string())
+    homes.to_csv(proc / "houses.csv.gz", index=False, encoding="utf-8-sig")
     parking.to_csv(proc / "parking.csv.gz", index=False, encoding="utf-8-sig")
 
     print("3/4 彙總")
-    hs, ps = aggregate_houses(houses), aggregate_parking(parking)
+    segs = expand_segments(homes)
+    hs, ps = aggregate_houses(segs), aggregate_parking(parking)
 
     print("4/4 產出")
-    build_excel(houses, parking, hs, ps, funnel, SITE / "雙北房價統計.xlsx")
-    build_dashboard(houses, parking, hs, ps, last_season, SITE / "index.html", PLOTLY_TAG)
+    build_excel(segs, parking, hs, ps, funnel, SITE / "雙北房價統計.xlsx")
+    build_dashboard(segs, parking, hs, ps, last_season, SITE / "index.html", PLOTLY_TAG)
     marker.write_text(last_season + "\n")
     print(f"完成：{SITE}（資料至 {last_season}）")
 

@@ -20,7 +20,7 @@ function Invoke-Git {
 
 # The house-price dashboard outputs are written only by the GitHub Action; never commit
 # local preview rebuilds of them (they would conflict with the bot's binary xlsx commits).
-$botOutputs = @('houseprice/index.html', 'houseprice/last_season.txt', 'houseprice/*.xlsx')
+$botOutputs = @('houseprice/index.html', 'houseprice/segments.js', 'houseprice/last_season.txt', 'houseprice/*.xlsx')
 $dirtyOutputs = & git -C $repoRoot status --porcelain -- @botOutputs
 if ($LASTEXITCODE -ne 0) {
     throw "git status failed with exit code $LASTEXITCODE"
@@ -28,7 +28,8 @@ if ($LASTEXITCODE -ne 0) {
 if ($dirtyOutputs) {
     Write-Warning ("Skipping local changes to bot-owned house-price outputs (not committed):`n" +
         ($dirtyOutputs -join "`n") +
-        "`nDiscard them with: git checkout -- houseprice/index.html houseprice/last_season.txt houseprice/*.xlsx")
+        "`nDiscard them with: git checkout -- houseprice/index.html houseprice/last_season.txt houseprice/*.xlsx" +
+        "`n(houseprice/segments.js: git checkout -- it if tracked, delete it if untracked)")
 }
 
 Invoke-Git -GitArguments (@('add', '-A', '--', '.') + ($botOutputs | ForEach-Object { ":(exclude)$_" }))

@@ -242,6 +242,11 @@ const YEAR_MS = 365.25 * 86400000;
 const yearsBetween = (d0, d1) => (new Date(d1) - new Date(d0)) / YEAR_MS;
 
 // 依實際日期的現金流求年化內部報酬率 (XIRR)。flows: [{ t: 年, cf }]，投入為負、期末價值為正
+// 公式（每筆投入用 IRR 複利滾到期末 = 期末資產）：
+//   Σ C_k × (1 + IRR)^(T − t_k) = W
+//   C_k = 第 k 筆投入金額，t_k = 投入時點（年），T = 期末時點（年），W = 期末資產
+// 程式實作時兩邊同除 (1 + IRR)^T，改成求 Σ cf ÷ (1 + r)^t = 0（投入為負、期末資產為正），解出的 IRR 相同。
+// 二分法：左邊 < 期末資產 → IRR 猜太低，往上找；左邊 > 期末資產 → IRR 猜太高，往下找。
 function solveXIRR(flows) {
     const npv = (r) => flows.reduce((s, f) => s + f.cf / Math.pow(1 + r, f.t), 0);
     const hasOut = flows.some(f => f.cf < 0);
@@ -332,7 +337,17 @@ function calculateStrategy(priceData, IA, CFA, freq, isLumpSumMode = false, timi
 
     const finalWealth = wealthHistory[wealthHistory.length-1].wealth;
     flows.push({ t: yearsBetween(d0, priceData[n].dateStr), cf: finalWealth });
-    // 單筆投入時 XIRR 即為複利年化報酬 (CAGR)；定期定額時為資金加權年化報酬 (IRR)
+    // 年化報酬率 (DCA: IRR / LS: CAGR)：左邊 = 每筆投入 × 複利滾到期末，右邊 = 期末資產 W
+    //   定期定額 (IRR)：期初投入 IA，之後每期投入 C 元
+    //     IA × (1 + IRR)^T + C × (1 + IRR)^(T − t_1) + C × (1 + IRR)^(T − t_2) + … = W
+    //     t_k = 第 k 筆投入距起始日的年數，T = 期末距起始日的年數（期末那天投入的錢複利 0 年）
+    //     IRR = 投入的錢實際一年平均賺幾 %，會受投入時點影響
+    //   單筆投入 (CAGR)：期初投入本金 P，只有一筆
+    //     P × (1 + CAGR)^T = W  ⇒  CAGR = (W ÷ P)^(1 / T) − 1
+    //     是上式只有一筆投入時的特例，所以單筆投入的 XIRR 就是 CAGR
+    //   例：價格 100 → 50 → 100，每年投 100 元，期末 4 股 × 100 = 400
+    //     定期定額：100(1 + r)^2 + 100(1 + r) + 100 = 400 ⇒ r ≈ 30.3%
+    //     單筆投入：300(1 + r)^2 = 300 ⇒ r = 0%
     const r_CAGR = solveXIRR(flows);
     const r_Vol = Math.sqrt(adjF) * std(twReturns);
 
@@ -570,7 +585,10 @@ document.getElementById('btnRun').addEventListener('click', async () => {
         </table>
         <div style="margin-top:12px; font-size:0.85em; color:#718096; line-height:1.6;">
             期間：${resampledData[0].dateStr} 至 ${resampledData[resampledData.length-1].dateStr}，共 ${resampledData.length - 1} 期；定期定額於每期${timingLabel}投入，幣別 ${CURRENCY}。<br>
-            DCA 年化報酬為依實際投入日期計算的內部報酬率 (IRR)；單筆投入為複利年化報酬 (CAGR)。<br>
+            <b>年化報酬率</b>（左邊 = 每筆投入 × 複利滾到期末，右邊 = 期末資產 W）<br>
+            <span style="font-family:monospace; margin-left:12px;">定期定額 IRR：IA × (1+IRR)^T + C × (1+IRR)^(T−t₁) + C × (1+IRR)^(T−t₂) + … = W</span><br>
+            <span style="font-family:monospace; margin-left:12px;">單筆投入 CAGR：P × (1+CAGR)^T = W ⇒ CAGR = (W ÷ P)^(1/T) − 1</span><br>
+            <span style="margin-left:12px;">IA = 期初投入，C = 每期投入金額，P = 期初本金，t = 該筆投入的時點（年），T = 期末時點（年）。單筆投入只有一筆投入，是 IRR 的特例，所以就是 CAGR；IRR = 投入的錢實際一年平均賺幾 %，會受投入時點影響。</span><br>
             最大回撤為「策略最大回撤」：自損益高點以來的損益變化 ÷ 當時在場的資金（高點時資產 + 之後新投入的資金），單筆投入時等同一般的最大回撤，定期定額則不會被新投入的資金掩蓋。「帳面最大虧損」為資產相對累積投入成本的最低點。<br>
             波動率以時間加權報酬計算（排除資金投入的影響），兩種策略持有同一標的，因此只顯示一個標的波動率。<br>
             ${fetched.adjusted ? '價格採用還原股價 (Adj Close)，視同股利全數再投入。' : '<b>注意：此標的無還原股價，改用收盤價，未計入股利。</b>'}

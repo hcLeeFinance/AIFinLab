@@ -123,6 +123,11 @@
         .card.opt .btn:hover { background-color: #6e40c9; }
 
         /* --- App 0: Morning Report (藍青色系) --- */
+        .card.livemonitor { border-top-color: #0e7490; }
+        .card.livemonitor h3::before { content: "📈"; font-size: 1.2em; }
+        .card.livemonitor .btn { background-color: #0e7490; color: white; }
+        .card.livemonitor .btn:hover { background-color: #155e75; }
+
         .card.morning { border-top-color: #0284c7; }
         .card.morning h3::before { content: "📰"; font-size: 1.2em; }
         .card.morning .btn { background-color: #0284c7; color: white; }
@@ -166,6 +171,15 @@
                 <p>每日美股與台股大盤觀盤戰情室。提供四大指數與費半、強弱勢類股、總體經濟數據與台股開盤連動戰略重點。</p>
             </div>
             <a href="morning/index.html" class="btn">進入晨報戰情室 &rarr;</a>
+        </div>
+
+        <!-- livemonitor：即時行情監控 -->
+        <div class="card livemonitor">
+            <div>
+                <h3>即時行情監控 (LiveMonitor)</h3>
+                <p>自行輸入台股、美股、外匯或加密貨幣代號，即時更新 K 線、均線、RSI、MACD，並提供規則公開的指標代理人綜合分數、風險指標（波動度、VaR、最大回撤）與委託簿／逐筆成交（加密貨幣）或價量分布。</p>
+            </div>
+            <a href="livemonitor/index.html" class="btn">進入行情監控 &rarr;</a>
         </div>
 
         <!-- 1 -->

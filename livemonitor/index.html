@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>即時行情監控 (LiveMonitor) · FinLab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@5.2.1/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+:root{
+  --bg:#070a10; --panel:#0d121b; --panel2:#0a0e15; --line:#1e2836; --dim:#8593a8; --txt:#d5deea; --white:#f4f7fb;
+  --up:#ff5468; --dn:#1fc98a; --cyan:#3fd4ff; --amber:#ffb020; --violet:#a58bff;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--txt);font-family:'Noto Sans TC','JetBrains Mono',sans-serif;font-size:13px}
+body{background:radial-gradient(ellipse at 75% 0%,#0f1d30 0%,transparent 55%),var(--bg);min-height:100vh;overflow-x:hidden}
+.mono{font-family:'JetBrains Mono',monospace}
+a{color:var(--cyan)}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;padding:10px 16px;border-bottom:1px solid var(--line)}
+.brand{font-family:'JetBrains Mono';font-weight:800;letter-spacing:.06em;color:var(--white);font-size:16px}
+.brand b{color:var(--cyan)}
+.sub{color:var(--dim);font-size:12px}
+.back{color:var(--dim);text-decoration:none;font-size:12px;border:1px solid var(--line);padding:3px 10px;border-radius:3px}
+.back:hover{color:var(--white);border-color:var(--dim)}
+.clock{margin-left:auto;color:var(--white);font-family:'JetBrains Mono';font-size:14px;font-weight:600}
+.kpis{display:grid;grid-template-columns:repeat(6,1fr);border-bottom:1px solid var(--line)}
+.kpi{padding:8px 14px;border-right:1px solid var(--line);cursor:pointer}
+.kpi:hover{background:#0f1622}
+.kpi .k{color:var(--dim);font-size:11px}
+.kpi .v{font-family:'JetBrains Mono';font-size:17px;font-weight:800;color:var(--white)}
+.kpi .d{font-family:'JetBrains Mono';font-size:11px}
+.up{color:var(--up)!important}.dn{color:var(--dn)!important}.flat{color:var(--dim)!important}
+.flashUp{animation:fu .6s}.flashDn{animation:fd .6s}
+@keyframes fu{0%{background:rgba(255,84,104,.22)}100%{background:transparent}}
+@keyframes fd{0%{background:rgba(31,201,138,.22)}100%{background:transparent}}
+
+.ctrl{padding:12px 16px 4px;display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+.ctrl label{display:flex;flex-direction:column;gap:4px;color:var(--dim);font-size:11px}
+.ctrl input,.ctrl select{background:#0b1019;color:var(--white);border:1px solid #2a3647;border-radius:4px;padding:8px 10px;font-size:14px;font-family:'JetBrains Mono','Noto Sans TC'}
+.ctrl input{width:300px;max-width:100%}
+.ctrl input:focus,.ctrl select:focus{outline:2px solid var(--cyan);outline-offset:0}
+.ctrl button{background:var(--cyan);color:#001018;border:0;border-radius:4px;padding:9px 18px;font-weight:700;font-size:14px;cursor:pointer;font-family:'Noto Sans TC'}
+.ctrl button:hover{filter:brightness(1.1)}
+.ex{padding:4px 16px 0;display:flex;flex-wrap:wrap;gap:6px;align-items:center;color:var(--dim);font-size:11px}
+.ex button{background:transparent;border:1px dashed #2f3c50;color:#aebbd0;border-radius:12px;padding:2px 10px;font-size:11px;cursor:pointer;font-family:'JetBrains Mono','Noto Sans TC'}
+.ex button:hover{border-color:var(--cyan);color:var(--white)}
+.hint{padding:6px 16px 0;color:var(--dim);font-size:12px;min-height:22px}
+.hint.err{color:var(--amber)}
+
+.quote{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 18px;padding:10px 16px;margin:8px 16px 0;border:1px solid var(--line);border-radius:4px;background:var(--panel2)}
+.quote .nm{font-size:16px;font-weight:700;color:var(--white)}
+.quote .sy{font-family:'JetBrains Mono';color:var(--cyan)}
+.quote .meta{color:var(--dim);font-size:12px}
+.quote .px{font-family:'JetBrains Mono';font-size:28px;font-weight:800;color:var(--white)}
+.quote .ch{font-family:'JetBrains Mono';font-size:15px;font-weight:600}
+.badge{font-size:11px;padding:2px 8px;border-radius:2px;border:1px solid}
+.badge.open{color:var(--dn);border-color:var(--dn)}
+.badge.closed{color:var(--amber);border-color:var(--amber)}
+.live{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--dn);margin-right:5px;animation:blink 1s infinite}
+@keyframes blink{50%{opacity:.25}}
+.qt{color:var(--dim);font-size:12px;font-family:'JetBrains Mono'}
+
+.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:10px;padding:10px 16px}
+.p{background:linear-gradient(180deg,#0e131d,#0a0e15);border:1px solid var(--line);border-radius:4px;overflow:hidden;min-width:0}
+.p h3{font-size:12px;letter-spacing:.04em;color:#b4c2d6;padding:8px 10px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:8px;font-weight:700}
+.p h3 .t{color:var(--dim);font-weight:400;font-size:11px;font-family:'JetBrains Mono'}
+.s8{grid-column:span 8}.s4{grid-column:span 4}
+#chart{height:560px;position:relative}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;padding:6px 10px;font-size:11px;color:var(--dim);border-bottom:1px solid var(--line);font-family:'JetBrains Mono','Noto Sans TC'}
+.legend i{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:4px}
+.legend .sw{display:inline-block;width:9px;height:9px;vertical-align:middle;margin-right:4px}
+
+.agents{padding:8px 10px}
+.ag{padding:7px 0;border-bottom:1px dashed var(--line)}
+.ag .row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.ag .n{color:var(--white);font-weight:700}
+.ag .v{font-family:'JetBrains Mono';font-weight:700}
+.ag .f{color:var(--dim);font-size:11px;margin:2px 0 4px}
+.sbar{height:6px;background:#162030;border-radius:3px;position:relative}
+.sbar i{position:absolute;top:0;height:6px;border-radius:3px}
+.sbar b{position:absolute;left:50%;top:-2px;width:1px;height:10px;background:#4a5a70}
+.ag input[type=range]{width:110px;accent-color:var(--cyan)}
+.ag .w{display:flex;align-items:center;gap:6px;color:var(--dim);font-size:11px}
+.comp{margin:10px 0 4px;padding:10px;border:1px solid var(--line);border-radius:4px;background:#0b1019}
+.comp .big{font-family:'JetBrains Mono';font-size:26px;font-weight:800}
+.comp .lab{font-size:15px;font-weight:700;margin-left:8px}
+.note{color:var(--dim);font-size:11px;line-height:1.6}
+
+.risk{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px}
+.rm{border:1px solid var(--line);padding:8px;border-radius:3px}
+.rm .k{color:var(--dim);font-size:11px}
+.rm .v{font-family:'JetBrains Mono';font-size:18px;font-weight:800;color:var(--white);margin:2px 0}
+.rm .s{color:var(--dim);font-size:10.5px}
+
+.ob{padding:6px 10px;font-family:'JetBrains Mono';font-size:11.5px;height:380px;overflow:hidden}
+.obr{display:grid;grid-template-columns:1fr 1fr 1fr;position:relative;padding:1px 4px}
+.obr i{position:absolute;top:1px;bottom:1px;right:0;opacity:.2}
+.obr span{position:relative;text-align:right}.obr span:first-child{text-align:left}
+.obh{color:var(--dim)}
+.mid{text-align:center;font-size:14px;font-weight:800;padding:5px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin:3px 0}
+.vp{display:grid;grid-template-columns:72px 1fr 64px;gap:6px;align-items:center;padding:1px 0}
+.vp .bar{height:11px;background:#1d2a3c;border-radius:2px}
+.vp.cur .bar{background:var(--cyan)}.vp.poc .bar{background:var(--amber)}
+.vp span{text-align:right}.vp span:first-child{text-align:left}
+
+.log{height:380px;overflow:hidden;padding:6px 10px;font-family:'JetBrains Mono';font-size:11.5px;line-height:1.7}
+.log div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.log .ts{color:var(--dim)}
+
+footer{padding:14px 16px 28px;color:var(--dim);font-size:12px;line-height:1.8;border-top:1px solid var(--line);margin-top:6px}
+footer b{color:#b4c2d6}
+@media(max-width:1100px){.s8,.s4{grid-column:span 12}.kpis{grid-template-columns:repeat(3,1fr)}#chart{height:480px}}
+@media(max-width:560px){.kpis{grid-template-columns:repeat(2,1fr)}.ctrl input{width:100%}.ctrl label.sym{flex:1 1 100%}.quote .px{font-size:22px}#chart{height:420px}}
+</style>
+</head>
+<body>
+<header>
+  <a class="back" href="../index.html">&larr; FinLab</a>
+  <div>
+    <div class="brand">FinLab<b>//</b>LiveMonitor</div>
+    <div class="sub">即時行情監控：台股 · 美股 · 外匯 · 加密貨幣</div>
+  </div>
+  <div class="clock" id="clock">--:--:--</div>
+</header>
+
+<div class="kpis" id="kpis"></div>
+
+<form class="ctrl" id="form" autocomplete="off">
+  <label>市場
+    <select id="mkt">
+      <option value="auto">自動判斷</option>
+      <option value="tw">台股（上市／上櫃）</option>
+      <option value="us">美股／ETF</option>
+      <option value="fx">外匯</option>
+      <option value="crypto">加密貨幣</option>
+      <option value="yahoo">其他 Yahoo 代號</option>
+    </select>
+  </label>
+  <label class="sym">代號（請自行輸入）
+    <input id="sym" type="text" placeholder="例如 2330、AAPL、USDTWD、BTC" spellcheck="false">
+  </label>
+  <label>K 線週期
+    <select id="itv">
+      <option value="1m">1 分鐘</option>
+      <option value="5m">5 分鐘</option>
+      <option value="15m">15 分鐘</option>
+      <option value="60m">60 分鐘</option>
+      <option value="1d">日線</option>
+    </select>
+  </label>
+  <button type="submit">查詢</button>
+</form>
+<div class="ex" id="ex">輸入範例（點選即填入）：</div>
+<div class="hint" id="hint"></div>
+
+<div class="quote" id="quote">
+  <span class="nm" id="qName">—</span><span class="sy" id="qSym"></span><span class="meta" id="qMeta"></span>
+  <span class="px" id="qPx">—</span><span class="ch" id="qCh"></span>
+  <span class="badge" id="qBadge"></span><span class="qt" id="qTime"></span>
+</div>
+
+<div class="grid">
+  <section class="p s8">
+    <h3><span>K 線圖 · 均線 · RSI · MACD</span><span class="t" id="chartInfo"></span></h3>
+    <div class="legend">
+      <span><span class="sw" style="background:var(--up)"></span>上漲（紅）</span>
+      <span><span class="sw" style="background:var(--dn)"></span>下跌（綠）</span>
+      <span><i style="background:var(--amber)"></i>MA20</span>
+      <span><i style="background:var(--violet)"></i>MA60</span>
+      <span><i style="background:var(--cyan)"></i>RSI(14)／MACD</span>
+      <span><i style="background:var(--amber)"></i>MACD 訊號線</span>
+    </div>
+    <div id="chart"></div>
+  </section>
+
+  <section class="p s4">
+    <h3><span>指標代理人 · 綜合分數</span><span class="t">規則公開，可調權重</span></h3>
+    <div class="agents" id="agents"></div>
+  </section>
+
+  <section class="p s4">
+    <h3><span>風險指標</span><span class="t" id="riskInfo">最近 120 根 K 棒</span></h3>
+    <div class="risk" id="risk"></div>
+    <div class="note" style="padding:0 10px 10px" id="riskNote"></div>
+  </section>
+
+  <section class="p s4">
+    <h3><span id="obTitle">委託簿</span><span class="t" id="obInfo"></span></h3>
+    <div class="ob" id="ob"></div>
+  </section>
+
+  <section class="p s4">
+    <h3><span id="logTitle">逐筆成交</span><span class="t" id="logInfo"></span></h3>
+    <div class="log" id="log"></div>
+  </section>
+</div>
+
+<footer>
+<b>資料來源：</b>台股、美股、外匯與指數取自 Yahoo Finance（經 FinLab 自建轉送服務），約每 10 秒更新一次，報價可能有延遲，請以上方顯示的「報價時間」為準；加密貨幣取自 Binance 公開行情（data-api.binance.vision），即時推播。<br>
+<b>時間軸：</b>台股、美股等交易所商品使用交易所當地時間；外匯與加密貨幣（24 小時市場）使用您電腦的當地時間。<br>
+<b>方法：</b>MA 為簡單移動平均；RSI 與 ATR 採 Wilder 平滑；MACD 為 EMA(12) − EMA(26)，訊號線 EMA(9)；布林通道 20 期 ±2 標準差。風險指標使用最近 120 根 K 棒的簡單報酬，跨休市缺口（間隔超過 3 根 K 棒）的報酬不納入。年化波動度 = 每根標準差 × √(每年 K 棒數)，每年 K 棒數依各市場每日交易時間估算；分鐘線的波動度會受買賣價差等微結構雜訊影響而偏高。<br>
+<b>指標代理人：</b>各代理人為公開的技術指標規則，分數只描述目前指標狀態（偏多／中性／偏空），不是買賣建議。<br>
+⚠ 本頁為教學與資訊展示用途，不構成任何投資建議或推薦，投資人應自行判斷並承擔風險。
+圖表使用 <a href="https://www.tradingview.com/lightweight-charts/" target="_blank" rel="noopener">TradingView Lightweight Charts™</a>（Apache-2.0）。
+</footer>
+
+<script>
+'use strict';
+// ================= constants & utils =================
+const PROXY = 'https://solitary-boat-26d0.hclee-finance.workers.dev/?url=';
+const YF = 'https://query1.finance.yahoo.com';
+const BN_REST = 'https://data-api.binance.vision/api/v3';
+const BN_WS = 'wss://data-stream.binance.vision/stream?streams=';
+const COL = {up:'#ff5468', dn:'#1fc98a', cyan:'#3fd4ff', amber:'#ffb020', violet:'#a58bff', dim:'#8593a8', line:'#1e2836', txt:'#d5deea'};
+const ITV = {
+  '1m': {sec:60,   yInit:'5d',  yPoll:'1d', bn:'1m'},
+  '5m': {sec:300,  yInit:'1mo', yPoll:'1d', bn:'5m'},
+  '15m':{sec:900,  yInit:'1mo', yPoll:'1d', bn:'15m'},
+  '60m':{sec:3600, yInit:'6mo', yPoll:'1d', bn:'1h'},
+  '1d': {sec:86400,yInit:'2y',  yPoll:'5d', bn:'1d'}
+};
+const CCY = new Set('USD EUR JPY GBP AUD NZD CAD CHF CNY CNH HKD SGD KRW TWD THB MYR IDR PHP INR VND SEK NOK DKK ZAR MXN BRL TRY PLN'.split(' '));
+const CRYPTO = new Set('BTC ETH SOL BNB XRP DOGE ADA AVAX LINK DOT TRX LTC SHIB TON SUI PEPE BCH NEAR UNI APT ARB OP ATOM ETC FIL XLM HBAR ICP INJ AAVE'.split(' '));
+const CRYPTO_QUOTES = ['USDT','USDC','FDUSD','BTC','ETH','BNB'];
+const EXAMPLES = [
+  ['2330','tw','台積電'],['0050','tw','元大台灣50'],['6488','tw','環球晶（上櫃）'],['AAPL','us','Apple'],['NVDA','us','NVIDIA'],
+  ['SPY','us','S&P 500 ETF'],['USDTWD','fx','美元/台幣'],['EURUSD','fx','歐元/美元'],['USDJPY','fx','美元/日圓'],
+  ['BTC','crypto','比特幣'],['ETH','crypto','以太幣'],['^TWII','yahoo','加權指數'],['GC=F','yahoo','黃金期貨']
+];
+const $ = id => document.getElementById(id);
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const fin = x => typeof x === 'number' && isFinite(x);
+function prec(p){ if(!fin(p)) return 2; const a=Math.abs(p); return a>=1000?1:a>=100?2:a>=10?3:a>=1?4:a>=0.01?5:8; }
+function decs(str){ const t=String(str); if(!t.includes('.')) return 0; return t.replace(/0+$/,'').split('.')[1].length; }
+function fmt(x,p){ return fin(x) ? x.toLocaleString('en-US',{minimumFractionDigits:p,maximumFractionDigits:p}) : '—'; }
+function fmtVol(v){ if(!fin(v)) return '—'; const a=Math.abs(v); return a>=1e9?(v/1e9).toFixed(2)+'B':a>=1e6?(v/1e6).toFixed(2)+'M':a>=1e3?(v/1e3).toFixed(1)+'K':a>=1?v.toFixed(0):v.toFixed(4); }
+function pct(x,d=2){ return fin(x) ? (x>=0?'+':'')+(x*100).toFixed(d)+'%' : '—'; }
+function cls(x){ return !fin(x)||x===0 ? 'flat' : x>0 ? 'up' : 'dn'; }
+function hhmmss(ms){ return new Date(ms).toLocaleTimeString('zh-TW',{hour12:false}); }
+function el(tag, attrs, text){ const e=document.createElement(tag); if(attrs) for(const k in attrs) e.setAttribute(k, attrs[k]); if(text!=null) e.textContent=text; return e; }
+
+async function yfetch(path){
+  const res = await fetch(PROXY + encodeURIComponent(YF + path));
+  let j = null; try { j = await res.json(); } catch(e) {}
+  if(!j) throw new Error('Yahoo 回應無法解析（HTTP ' + res.status + '）');
+  return j;
+}
+async function yChart(sym, interval, range){
+  const j = await yfetch(`/v8/finance/chart/${encodeURIComponent(sym)}?interval=${interval}&range=${range}&includePrePost=false`);
+  const r = j && j.chart && j.chart.result && j.chart.result[0];
+  if(!r || !r.meta){ const e = new Error('NOT_FOUND'); e.desc = j && j.chart && j.chart.error && j.chart.error.description; throw e; }
+  return r;
+}
+function yBars(r, sec){
+  const t = r.timestamp || [], q = (r.indicators && r.indicators.quote && r.indicators.quote[0]) || {};
+  const m = new Map();
+  for(let i=0;i<t.length;i++){
+    const o=q.open&&q.open[i], h=q.high&&q.high[i], l=q.low&&q.low[i], c=q.close&&q.close[i];
+    if(!fin(o)||!fin(h)||!fin(l)||!fin(c)) continue;
+    const v = q.volume && fin(q.volume[i]) ? q.volume[i] : 0;
+    m.set(t[i], {t:t[i], o, h, l, c, v});
+  }
+  const raw=[...m.values()].sort((a,b)=>a.t-b.t), out=[];
+  const off=(r.meta && r.meta.gmtoffset)||0, day=t=>Math.floor((t+off)/86400);
+  // Yahoo 的最後一筆是「即時報價」，時間戳等於報價時間、未對齊週期：併入所屬的 K 棒
+  for(const x of raw){
+    const pv=out[out.length-1];
+    if(pv && sec){
+      if(sec>=86400){
+        const dd=day(x.t)-day(pv.t);
+        if(dd===0){ out[out.length-1]={t:pv.t, o:pv.o, h:Math.max(pv.h,x.h), l:Math.min(pv.l,x.l), c:x.c, v:Math.max(pv.v,x.v)}; continue; }
+        if((x.t-pv.t)%86400!==0 && dd>0) x.t = pv.t + dd*86400;
+      } else if((x.t-pv.t)%sec!==0){
+        const bt = pv.t + Math.floor((x.t-pv.t)/sec)*sec;
+        if(bt===pv.t){ out[out.length-1]={t:pv.t, o:pv.o, h:Math.max(pv.h,x.h), l:Math.min(pv.l,x.l), c:x.c, v:Math.max(pv.v,x.v)}; continue; }
+        x.t = bt;
+      }
+    }
+    out.push(x);
+  }
+  return out;
+}
+
+// ================= clock =================
+setInterval(()=>{ $('clock').textContent = new Date().toLocaleString('zh-TW',{hour12:false}); }, 500);
+
+// ================= state =================
+const S = {
+  gen:0, req:0, lastMsg:0, reg:null, kind:null, sym:null, disp:null, itv:'1m', bars:[], shift:0, prevClose:null, quoteTime:null, price:null,
+  meta:null, dayMin:null, days:252, timer:null, ws:null, wsRetry:null, lastPollPx:null, yFallback:false,
+  weights:[1,1,1,1], volOn:true, depth:null, tradesQ:[], ind:null
+};
+
+// ================= chart =================
+const LC = window.LightweightCharts;
+let chart, sCandle, sVol, sMa20, sMa60, sRsi, sMacd, sSig, sHist;
+function initChart(){
+  if(!LC){ $('chart').textContent = '圖表元件載入失敗，請檢查網路連線後重新整理。'; return; }
+  chart = LC.createChart($('chart'), {
+    autoSize:true,
+    layout:{background:{type:'solid',color:'#0b0f17'}, textColor:'#9fb0c6', fontFamily:'JetBrains Mono', attributionLogo:true,
+            panes:{separatorColor:'#1e2836', separatorHoverColor:'#2c3a4e', enableResize:true}},
+    grid:{vertLines:{color:'#141b27'}, horzLines:{color:'#141b27'}},
+    crosshair:{mode:0},
+    rightPriceScale:{borderColor:'#1e2836'},
+    timeScale:{borderColor:'#1e2836', timeVisible:true, secondsVisible:false, rightOffset:4}
+  });
+  sCandle = chart.addSeries(LC.CandlestickSeries, {upColor:COL.up, downColor:COL.dn, borderVisible:false, wickUpColor:COL.up, wickDownColor:COL.dn}, 0);
+  sVol = chart.addSeries(LC.HistogramSeries, {priceFormat:{type:'volume'}, priceScaleId:'vol', lastValueVisible:false, priceLineVisible:false}, 0);
+  chart.priceScale('vol', 0).applyOptions({scaleMargins:{top:0.82, bottom:0}});
+  sCandle.priceScale().applyOptions({scaleMargins:{top:0.06, bottom:0.2}});
+  const lo = {lineWidth:1.5, lastValueVisible:false, priceLineVisible:false, crosshairMarkerVisible:false};
+  sMa20 = chart.addSeries(LC.LineSeries, {...lo, color:COL.amber}, 0);
+  sMa60 = chart.addSeries(LC.LineSeries, {...lo, color:COL.violet}, 0);
+  sRsi = chart.addSeries(LC.LineSeries, {...lo, color:COL.cyan, lastValueVisible:true, priceFormat:{type:'price',precision:1,minMove:0.1}}, 1);
+  sRsi.createPriceLine({price:70, color:'#5a3340', lineWidth:1, lineStyle:2, axisLabelVisible:true, title:''});
+  sRsi.createPriceLine({price:30, color:'#1f4a3d', lineWidth:1, lineStyle:2, axisLabelVisible:true, title:''});
+  sHist = chart.addSeries(LC.HistogramSeries, {lastValueVisible:false, priceLineVisible:false}, 2);
+  sMacd = chart.addSeries(LC.LineSeries, {...lo, color:COL.cyan}, 2);
+  sSig = chart.addSeries(LC.LineSeries, {...lo, color:COL.amber}, 2);
+  const ps = chart.panes(); if(ps[0]) ps[0].setStretchFactor(3.2); if(ps[1]) ps[1].setStretchFactor(1); if(ps[2]) ps[2].setStretchFactor(1);
+}
+
+// ================= indicators =================
+function sma(a,n){ const o=new Array(a.length).fill(null); let s=0; for(let i=0;i<a.length;i++){ s+=a[i]; if(i>=n) s-=a[i-n]; if(i>=n-1) o[i]=s/n; } return o; }
+function ema(a,n){ const o=new Array(a.length).fill(null); if(a.length<n) return o; const k=2/(n+1); let e=0; for(let i=0;i<n;i++) e+=a[i]; e/=n; o[n-1]=e; for(let i=n;i<a.length;i++){ e=a[i]*k+e*(1-k); o[i]=e; } return o; }
+function rsi(c,n=14){ const o=new Array(c.length).fill(null); if(c.length<=n) return o; let g=0,l=0; for(let i=1;i<=n;i++){ const d=c[i]-c[i-1]; if(d>0) g+=d; else l-=d; } g/=n; l/=n;
+  o[n] = l===0 ? (g===0?50:100) : 100-100/(1+g/l);
+  for(let i=n+1;i<c.length;i++){ const d=c[i]-c[i-1]; g=(g*(n-1)+Math.max(d,0))/n; l=(l*(n-1)+Math.max(-d,0))/n; o[i] = l===0 ? (g===0?50:100) : 100-100/(1+g/l); } return o; }
+function atr(b,n=14){ const o=new Array(b.length).fill(null); if(b.length<=n) return o; const tr=b.map((x,i)=> i===0 ? x.h-x.l : Math.max(x.h-x.l, Math.abs(x.h-b[i-1].c), Math.abs(x.l-b[i-1].c)));
+  let a=0; for(let i=1;i<=n;i++) a+=tr[i]; a/=n; o[n]=a; for(let i=n+1;i<b.length;i++){ a=(a*(n-1)+tr[i])/n; o[i]=a; } return o; }
+function boll(c,n=20,k=2){ const m=sma(c,n), up=new Array(c.length).fill(null), lo=new Array(c.length).fill(null);
+  for(let i=n-1;i<c.length;i++){ let s=0; for(let j=i-n+1;j<=i;j++) s+=(c[j]-m[i])**2; const sd=Math.sqrt(s/n); up[i]=m[i]+k*sd; lo[i]=m[i]-k*sd; } return {m,up,lo}; }
+function computeInd(){
+  const b=S.bars, c=b.map(x=>x.c);
+  const e12=ema(c,12), e26=ema(c,26), macd=c.map((_,i)=> e12[i]!=null&&e26[i]!=null ? e12[i]-e26[i] : null);
+  const firstM = macd.findIndex(x=>x!=null);
+  const sigPart = firstM<0 ? [] : ema(macd.slice(firstM), 9);
+  const sig = c.map((_,i)=> firstM>=0 && i>=firstM ? sigPart[i-firstM] : null);
+  S.ind = {ma20:sma(c,20), ma60:sma(c,60), rsi:rsi(c,14), macd, sig, hist:macd.map((x,i)=> x!=null&&sig[i]!=null ? x-sig[i] : null), atr:atr(b,14), bb:boll(c,20,2)};
+}
+
+// ================= render chart data =================
+const T = t => t + S.shift;
+function lineData(arr){ const o=[]; for(let i=0;i<arr.length;i++) if(arr[i]!=null) o.push({time:T(S.bars[i].t), value:arr[i]}); return o; }
+function volPt(b){ return {time:T(b.t), value:b.v, color: b.c>=b.o ? 'rgba(255,84,104,.38)' : 'rgba(31,201,138,.38)'}; }
+function histPt(i){ const h=S.ind.hist[i]; return {time:T(S.bars[i].t), value:h, color: h>=0 ? 'rgba(255,84,104,.55)' : 'rgba(31,201,138,.55)'}; }
+function setAll(){
+  if(!chart) return;
+  const b=S.bars, p=prec(b.length? b[b.length-1].c : 1), pf={type:'price', precision:p, minMove:Math.pow(10,-p)};
+  sCandle.applyOptions({priceFormat:pf}); sMa20.applyOptions({priceFormat:pf}); sMa60.applyOptions({priceFormat:pf});
+  const mp = Math.max(2, p+1), mf={type:'price', precision:mp, minMove:Math.pow(10,-mp)};
+  sMacd.applyOptions({priceFormat:mf}); sSig.applyOptions({priceFormat:mf}); sHist.applyOptions({priceFormat:mf});
+  S.volOn = b.some(x=>x.v>0);
+  sCandle.setData(b.map(x=>({time:T(x.t), open:x.o, high:x.h, low:x.l, close:x.c})));
+  sVol.setData(S.volOn ? b.map(volPt) : []);
+  sMa20.setData(lineData(S.ind.ma20)); sMa60.setData(lineData(S.ind.ma60)); sRsi.setData(lineData(S.ind.rsi));
+  sMacd.setData(lineData(S.ind.macd)); sSig.setData(lineData(S.ind.sig));
+  const hs=[]; for(let i=0;i<b.length;i++) if(S.ind.hist[i]!=null) hs.push(histPt(i)); sHist.setData(hs);
+  const n=b.length, show = S.itv==='1d' ? 160 : 240;
+  if(n) chart.timeScale().setVisibleLogicalRange({from:Math.max(0,n-show), to:n+3});
+}
+function updateTail(from){
+  if(!chart) return;
+  const b=S.bars, I=S.ind;
+  for(let i=Math.max(0,from); i<b.length; i++){
+    const x=b[i], t=T(x.t);
+    sCandle.update({time:t, open:x.o, high:x.h, low:x.l, close:x.c});
+    if(S.volOn) sVol.update(volPt(x));
+    if(I.ma20[i]!=null) sMa20.update({time:t, value:I.ma20[i]});
+    if(I.ma60[i]!=null) sMa60.update({time:t, value:I.ma60[i]});
+    if(I.rsi[i]!=null) sRsi.update({time:t, value:I.rsi[i]});
+    if(I.macd[i]!=null) sMacd.update({time:t, value:I.macd[i]});
+    if(I.sig[i]!=null) sSig.update({time:t, value:I.sig[i]});
+    if(I.hist[i]!=null) sHist.update(histPt(i));
+  }
+}
+// merge incoming bars (ascending); returns index of first changed bar, or -1
+function mergeBars(nb){
+  const b=S.bars; if(!nb.length) return -1;
+  if(!b.length){ S.bars=nb.slice(); return 0; }
+  const lastT=b[b.length-1].t; let first=-1;
+  for(const x of nb){
+    if(x.t < lastT) continue;
+    if(x.t === b[b.length-1].t){ const y=b[b.length-1]; if(y.o!==x.o||y.h!==x.h||y.l!==x.l||y.c!==x.c||y.v!==x.v){ b[b.length-1]=x; if(first<0) first=b.length-1; } }
+    else { b.push(x); if(first<0) first=b.length-1; }
+  }
+  if(b.length>6000){ b.splice(0,b.length-5000); return -2; }
+  return first;
+}
+function afterData(full, first){
+  computeInd();
+  if(full || first===-2) setAll(); else if(first>=0) updateTail(first);
+  renderAgents(); renderRisk();
+  if(S.kind!=='crypto' || S.yFallback) renderProfile();
+}
+
+// ================= ticker resolution =================
+function resolve(raw, mkt){
+  let s = raw.trim().toUpperCase().replace(/\s+/g,'');
+  if(!s) return null;
+  const cryptoPair = x => {
+    x = x.replace(/[\/_]/g,'');
+    if(/-?USD$/.test(x)) x = x.replace(/-?USD$/,'USDT');
+    x = x.replace(/-/g,'');
+    if(!CRYPTO_QUOTES.some(q=> x.endsWith(q) && x.length>q.length)) x += 'USDT';
+    return x;
+  };
+  const fxSym = x => {
+    if(/=X$/.test(x)) return x;
+    x = x.replace(/[\/\-]/g,'');
+    if(/^[A-Z]{3}$/.test(x)) return 'USD'+x+'=X';
+    return x+'=X';
+  };
+  if(mkt==='tw'){ return /^\d{4,6}[A-Z]?$/.test(s) ? {kind:'tw', cands:[s+'.TW', s+'.TWO']} : {kind:'yahoo', cands:[s]}; }
+  if(mkt==='us' || mkt==='yahoo') return {kind:'yahoo', cands:[s]};
+  if(mkt==='fx') return {kind:'yahoo', cands:[fxSym(s)]};
+  if(mkt==='crypto') return {kind:'crypto', pair:cryptoPair(s)};
+  // auto
+  if(/^\d{4,6}[A-Z]?$/.test(s)) return {kind:'tw', cands:[s+'.TW', s+'.TWO']};
+  if(/[.^=]/.test(s)) return {kind:'yahoo', cands:[s]};
+  const plain = s.replace(/[\/\-]/g,'');
+  if(/^[A-Z]{6}$/.test(plain) && CCY.has(plain.slice(0,3)) && CCY.has(plain.slice(3)) && (s.includes('/')||!CRYPTO.has(plain.slice(0,3)))) return {kind:'yahoo', cands:[plain+'=X']};
+  if(/-USD$/.test(s) || (/USD$/.test(s) && CRYPTO.has(s.slice(0,-3))) || CRYPTO_QUOTES.some(q=> s.endsWith(q) && CRYPTO.has(s.slice(0, s.length-q.length)))) return {kind:'crypto', pair:cryptoPair(s)};
+  if(CRYPTO.has(s)) return {kind:'crypto', pair:s+'USDT', ambiguous:true};
+  return {kind:'yahoo', cands:[s]};
+}
+
+// ================= load =================
+function stopFeeds(){
+  clearTimeout(S.timer); S.timer=null; clearTimeout(S.wsRetry); S.wsRetry=null;
+  if(S.ws){ try{ S.ws.onclose=null; S.ws.close(); }catch(e){} S.ws=null; }
+}
+function setHint(msg, err){ const h=$('hint'); h.textContent=msg||''; h.className='hint'+(err?' err':''); }
+
+async function load(raw, mkt, itv){
+  const r = resolve(raw, mkt);
+  if(!r){ setHint('請輸入代號。', true); return; }
+  const req = ++S.req;
+  setHint('查詢中…');
+  try{
+    const ok = r.kind==='crypto' ? await loadCrypto(r, itv, req) : await loadYahoo(r, itv, req);
+    if(ok!==true || req!==S.req) return;
+    try{ history.replaceState(null,'', `?s=${encodeURIComponent(raw.trim())}&m=${mkt}&i=${itv}`); }catch(e){}
+  }catch(e){
+    if(req!==S.req) return;
+    console.warn(e);
+    setHint(e.message==='NOT_FOUND' ? `找不到「${raw.trim()}」的資料，畫面保留上一個代號。台股上市可直接輸入代號（如 2330），上櫃會自動改查 .TWO；外匯請輸入如 USDTWD；美股請輸入如 AAPL。` : `資料讀取失敗：${e.message}。畫面保留上一個代號，請稍後再試。`, true);
+  }
+}
+
+async function loadYahoo(r, itv, req){
+  const cfg = ITV[itv];
+  let res=null, sym=null, lastErr=null;
+  for(const c of r.cands){
+    try{
+      const [a, d] = await Promise.all([ yChart(c, itv, cfg.yInit), itv==='1d' ? null : yChart(c, '1m', '1d').catch(()=>null) ]);
+      res={a,d}; sym=c; break;
+    }catch(e){ lastErr=e; if(e.message!=='NOT_FOUND') throw e; }
+  }
+  if(req!==S.req) return false;
+  if(!res) throw lastErr || new Error('NOT_FOUND');
+  const bars = yBars(res.a, cfg.sec);
+  if(!bars.length) throw new Error('NOT_FOUND');
+  stopFeeds(); const gen = ++S.gen;
+  const m = res.a.meta;
+  Object.assign(S, {kind:'yahoo', sym, itv, bars, meta:m, yFallback:r.yFallback||false, lastPollPx:null, depth:null, tradesQ:[]});
+  const type = m.instrumentType || '';
+  const is24 = type==='CURRENCY' || type==='CRYPTOCURRENCY';
+  S.shift = is24 ? -new Date().getTimezoneOffset()*60 : (m.gmtoffset||0);
+  const reg = m.currentTradingPeriod && m.currentTradingPeriod.regular;
+  S.reg = (res.d && res.d.meta.currentTradingPeriod && res.d.meta.currentTradingPeriod.regular) || reg || null;
+  S.dayMin = reg && reg.end>reg.start ? (reg.end-reg.start)/60 : 390;
+  S.days = type==='CRYPTOCURRENCY' ? 365 : S.dayMin>=1380 ? 260 : 252;
+  S.prevClose = itv==='1d' ? (bars.length>1 ? bars[bars.length-2].c : null) : (res.d && res.d.meta.chartPreviousClose);
+  if(itv==='1d' && bars.length>1){ const lastDay = new Date((bars[bars.length-1].t + (m.gmtoffset||0))*1000).toISOString().slice(0,10); const md = new Date(((m.regularMarketTime||0)+(m.gmtoffset||0))*1000).toISOString().slice(0,10); if(lastDay!==md) S.prevClose = bars[bars.length-1].c; }
+  S.price = fin(m.regularMarketPrice) ? m.regularMarketPrice : bars[bars.length-1].c;
+  S.quoteTime = (m.regularMarketTime||bars[bars.length-1].t)*1000;
+  const kindLabel = {EQUITY:'股票', ETF:'ETF', CURRENCY:'外匯', INDEX:'指數', FUTURE:'期貨', CRYPTOCURRENCY:'加密貨幣', MUTUALFUND:'基金'}[type] || type;
+  S.disp = {name: m.longName || m.shortName || sym, sym, meta:`${m.fullExchangeName||m.exchangeName||''} · ${m.currency||''} · ${kindLabel}`};
+  let hint = `已解析為 Yahoo 代號 ${sym}（${kindLabel}）。`;
+  if(r.kind==='tw' && sym.endsWith('.TWO')) hint += '此代號在上市查無資料，已改查上櫃。';
+  if(r.yFallback) hint = `Binance 查無此交易對或暫時無法連線，改查 Yahoo ${sym}（約每 10 秒更新）。`;
+  setHint(hint);
+  $('obTitle').textContent = '價量分布（本時段）'; $('logTitle').textContent = '報價紀錄';
+  $('log').replaceChildren(); $('ob').replaceChildren();
+  $('chartInfo').textContent = `${sym} · ${itv}`;
+  afterData(true, 0);
+  renderQuote();
+  logQuote(S.price, true);
+  schedulePoll(gen);
+  return true;
+}
+
+function isFresh(){
+  if(S.kind==='crypto') return Date.now()-S.lastMsg < 15000;
+  if(!S.quoteTime) return false;
+  if(Date.now()-S.quoteTime < 10*60*1000) return true;
+  const now=Date.now()/1000, g=S.reg;
+  return !!(g && now>=g.start && now<=g.end && S.quoteTime/1000>=g.start);
+}
+function pollMs(){ return isFresh() ? (ITV[S.itv].sec>=3600 ? 30000 : 10000) : 60000; }
+function schedulePoll(gen){
+  clearTimeout(S.timer);
+  S.timer = setTimeout(()=>poll(gen), pollMs());
+}
+async function poll(gen){
+  if(gen!==S.gen || S.inflight===gen) return;
+  clearTimeout(S.timer);
+  if(document.hidden){ S.timer=setTimeout(()=>poll(gen), 5000); return; }
+  try{
+    const cfg = ITV[S.itv];
+    S.inflight = gen;
+    const r = await yChart(S.sym, S.itv, cfg.yPoll).finally(()=>{ if(S.inflight===gen) S.inflight=null; });
+    if(gen!==S.gen) return;
+    const m=r.meta, nb=yBars(r, cfg.sec);
+    const first = mergeBars(nb);
+    if(fin(m.regularMarketPrice)) S.price=m.regularMarketPrice;
+    if(m.regularMarketTime) S.quoteTime=m.regularMarketTime*1000;
+    if(S.itv!=='1d' && fin(m.chartPreviousClose)) S.prevClose=m.chartPreviousClose;
+    if(m.currentTradingPeriod && m.currentTradingPeriod.regular && S.itv!=='1d') S.reg=m.currentTradingPeriod.regular;
+    afterData(false, first);
+    renderQuote(); logQuote(S.price, false);
+  }catch(e){ console.warn('poll', e); }
+  if(gen===S.gen) schedulePoll(gen);
+}
+
+async function loadCrypto(r, itv, req){
+  const cfg = ITV[itv];
+  let ks;
+  try{
+    const res = await fetch(`${BN_REST}/klines?symbol=${r.pair}&interval=${cfg.bn}&limit=1000`);
+    ks = await res.json();
+  }catch(e){
+    if(req!==S.req) return false;
+    // Binance 無法連線，或查無此交易對（錯誤回應沒有 CORS 標頭，瀏覽器看起來同樣是連線失敗）→ 改查 Yahoo BASE-USD
+    const base = r.pair.replace(/(USDT|USDC|FDUSD)$/,'');
+    return await loadYahoo({kind:'yahoo', cands:[base+'-USD'], yFallback:true}, itv, req);
+  }
+  if(req!==S.req) return false;
+  if(!Array.isArray(ks)){ const e=new Error('NOT_FOUND'); throw e; }
+  stopFeeds(); const gen = ++S.gen; S.lastMsg = Date.now();
+  const bars = ks.map(k=>({t:k[0]/1000, o:+k[1], h:+k[2], l:+k[3], c:+k[4], v:+k[5]}));
+  Object.assign(S, {kind:'crypto', sym:r.pair, itv, bars, meta:null, yFallback:false, shift:-new Date().getTimezoneOffset()*60,
+    dayMin:1440, days:365, prevClose:null, price:bars.length?bars[bars.length-1].c:null, quoteTime:Date.now(), depth:null, tradesQ:[]});
+  const quote = CRYPTO_QUOTES.find(q=> r.pair.endsWith(q) && r.pair.length>q.length) || '';
+  const base = r.pair.slice(0, r.pair.length-quote.length);
+  S.disp = {name: base + ' / ' + quote, sym: r.pair, meta:`Binance · ${quote} · 加密貨幣 · 24 小時交易`};
+  let hint = `已解析為 Binance 交易對 ${r.pair}，即時推播。`;
+  if(r.ambiguous) hint += `「${base}」也可能是美股代號（例如 Grayscale ETF）；若要查美股，請把市場改為「美股／ETF」。`;
+  setHint(hint);
+  $('obTitle').textContent = '委託簿（前 12 檔）'; $('logTitle').textContent = '逐筆成交';
+  $('log').replaceChildren(); $('ob').replaceChildren();
+  $('chartInfo').textContent = `${r.pair} · ${itv}`;
+  afterData(true, 0);
+  renderQuote();
+  openWs(gen, r.pair.toLowerCase(), cfg.bn);
+  return true;
+}
+async function refetchKlines(gen){
+  try{
+    const ks = await (await fetch(`${BN_REST}/klines?symbol=${S.sym}&interval=${ITV[S.itv].bn}&limit=1000`)).json();
+    if(gen!==S.gen || !Array.isArray(ks)) return;
+    S.bars = ks.map(k=>({t:k[0]/1000, o:+k[1], h:+k[2], l:+k[3], c:+k[4], v:+k[5]}));
+    afterData(true, 0);
+  }catch(e){ console.warn('refetch', e); }
+}
+
+function openWs(gen, s, bi){
+  const ws = new WebSocket(BN_WS + `${s}@kline_${bi}/${s}@aggTrade/${s}@depth20@1000ms/${s}@ticker`);
+  S.ws = ws;
+  ws.onmessage = ev => {
+    if(gen!==S.gen) return;
+    let m; try{ m=JSON.parse(ev.data); }catch(e){ return; }
+    const st=m.stream||'', d=m.data; if(!d) return;
+    S.lastMsg = Date.now();
+    if(st.includes('@kline_')){
+      const k=d.k, x={t:k.t/1000, o:+k.o, h:+k.h, l:+k.l, c:+k.c, v:+k.v};
+      const first = mergeBars([x]); S.price=x.c; S.quoteTime=Date.now();
+      if(first===-2){ computeInd(); setAll(); } else if(first>=0){ computeInd(); updateTail(first); }
+      throttle('crypto', ()=>{ renderAgents(); renderRisk(); renderQuote(); }, 1000);
+    } else if(st.endsWith('@aggTrade')){
+      S.tradesQ.push(d); if(S.tradesQ.length>200) S.tradesQ.splice(0, S.tradesQ.length-200);
+      S.price=+d.p; S.quoteTime=d.T;
+      throttle('trades', renderTrades, 250);
+    } else if(st.includes('@depth')){
+      S.depth=d; renderDepth();
+    } else if(st.endsWith('@ticker')){
+      S.prevClose=+d.o; renderQuote();
+    }
+  };
+  ws.onclose = () => { if(gen!==S.gen) return; S.wsRetry=setTimeout(async ()=>{ if(gen!==S.gen) return; await refetchKlines(gen); if(gen===S.gen) openWs(gen, s, bi); }, 3000); };
+}
+const _thr={};
+function throttle(key, fn, ms){ if(_thr[key]) return; _thr[key]=setTimeout(()=>{ _thr[key]=null; fn(); }, ms); }
+
+// ================= quote bar =================
+let lastShownPx=null;
+function renderQuote(){
+  if(!S.disp) return;
+  $('qName').textContent=S.disp.name; $('qSym').textContent=S.disp.sym; $('qMeta').textContent=S.disp.meta;
+  const p=S.price, pc=S.prevClose, d=fin(p)&&fin(pc)&&pc ? p-pc : null;
+  const pr=prec(p);
+  const px=$('qPx'); px.textContent=fmt(p,pr);
+  if(lastShownPx!=null && fin(p) && p!==lastShownPx){ px.classList.remove('flashUp','flashDn'); void px.offsetWidth; px.classList.add(p>lastShownPx?'flashUp':'flashDn'); }
+  lastShownPx=p;
+  const lab = S.kind==='crypto' ? '24h ' : '';
+  $('qCh').textContent = d==null ? '' : `${lab}${d>=0?'▲':'▼'} ${fmt(Math.abs(d),pr)} (${pct(d/pc)})`;
+  $('qCh').className='ch '+cls(d);
+  const open = isFresh();
+  const b=$('qBadge'); b.replaceChildren();
+  if(open){ b.append(el('span',{class:'live'}), document.createTextNode(S.kind==='crypto'?'即時推播':'交易中')); b.className='badge open'; }
+  else { b.textContent = S.kind==='crypto' ? '推播中斷，重新連線中' : '休市／盤後'; b.className='badge closed'; }
+  if(S.quoteTime){
+    const ago=Math.max(0, Math.round((Date.now()-S.quoteTime)/1000));
+    const agoTxt = ago<120 ? `${ago} 秒前` : ago<7200 ? `${Math.round(ago/60)} 分鐘前` : ago<172800 ? `${Math.round(ago/3600)} 小時前` : `${Math.round(ago/86400)} 天前`;
+    $('qTime').textContent = `報價時間 ${new Date(S.quoteTime).toLocaleString('zh-TW',{hour12:false})}（${agoTxt}）`;
+  }
+}
+setInterval(()=>{ if(S.disp) renderQuote(); }, 1000);
+
+// ================= agents =================
+const AGENTS = [
+  {n:'趨勢代理人', f:'(MA20 − MA60) ÷ (2 × ATR14)：短均線高於長均線為正'},
+  {n:'動能代理人', f:'(RSI14 − 50) ÷ 20：RSI 70 以上為 +1，30 以下為 −1'},
+  {n:'MACD 代理人', f:'MACD 柱狀體 ÷ (0.5 × ATR14)：柱狀體為正代表動能轉強'},
+  {n:'均值回歸代理人', f:'−(布林 %B − 0.5) × 2：接近上軌為負（可能拉回），接近下軌為正'}
+];
+function buildAgents(){
+  const box=$('agents'); box.replaceChildren();
+  AGENTS.forEach((a,i)=>{
+    const d=el('div',{class:'ag'});
+    const row=el('div',{class:'row'}); row.append(el('span',{class:'n'},a.n), el('span',{class:'v',id:'agv'+i},'—'));
+    const f=el('div',{class:'f'},a.f);
+    const bar=el('div',{class:'sbar'}); bar.append(el('i',{id:'agb'+i}), el('b'));
+    const w=el('div',{class:'w'}); const rg=el('input',{type:'range',min:'0',max:'3',step:'0.5',value:String(S.weights[i]),'aria-label':a.n+' 權重'}); const wl=el('span',null,'權重 '+S.weights[i]);
+    rg.addEventListener('input',()=>{ S.weights[i]=+rg.value; wl.textContent='權重 '+rg.value; renderAgents(); });
+    w.append(wl, rg);
+    const r2=el('div',{class:'row'}); r2.append(bar); bar.style.flex='1'; r2.append(w);
+    d.append(row,f,r2); box.append(d);
+  });
+  const rk=el('div',{class:'ag'});
+  const row=el('div',{class:'row'}); row.append(el('span',{class:'n'},'風控代理人'), el('span',{class:'v',id:'agvr'},'—'));
+  rk.append(row, el('div',{class:'f'},'風險調整係數 = 近 120 根波動度 ÷ 近 20 根波動度，限制在 0.3～1；近期波動放大時壓低綜合分數'));
+  box.append(rk);
+  const c=el('div',{class:'comp'});
+  const top=el('div'); top.append(el('span',{class:'big',id:'compV'},'—'), el('span',{class:'lab',id:'compL'},''));
+  const bar=el('div',{class:'sbar',style:'margin-top:8px;height:8px'}); bar.append(el('i',{id:'compB',style:'height:8px'}), el('b'));
+  c.append(el('div',{class:'note'},'綜合分數（−100～+100）= 風險調整係數 × 加權平均分數'), top, bar);
+  box.append(c, el('div',{class:'note'},'+30 以上為「偏多」，−30 以下為「偏空」，其餘為「中性」。趨勢、動能類與均值回歸類代理人看法本來就可能相反，綜合分數只是把指標狀態加權平均，不代表預測或買賣建議。'));
+}
+function stdev(a){ if(a.length<2) return null; const m=a.reduce((x,y)=>x+y,0)/a.length; return Math.sqrt(a.reduce((x,y)=>x+(y-m)**2,0)/(a.length-1)); }
+function returns(n){
+  const b=S.bars, out=[], gapMax = S.itv==='1d' ? Infinity : ITV[S.itv].sec*3;
+  for(let i=b.length-1; i>0 && out.length<n; i--){ if(b[i].t-b[i-1].t > gapMax) continue; out.push(b[i].c/b[i-1].c-1); }
+  return out.reverse();
+}
+function setBar(id, s){ const e=$(id); if(!e) return; if(!fin(s)){ e.style.width='0'; return; } const w=Math.abs(s)*50; e.style.left=(s>=0?50:50-w)+'%'; e.style.width=w+'%'; e.style.background= s>=0?COL.up:COL.dn; }
+function renderAgents(){
+  if(!S.ind || !$('agv0')) return;
+  const I=S.ind, n=S.bars.length-1, c=S.bars[n] ? S.bars[n].c : null, A=I.atr[n];
+  const sc=[
+    I.ma20[n]!=null&&I.ma60[n]!=null&&A>0 ? clamp((I.ma20[n]-I.ma60[n])/(2*A),-1,1) : null,
+    I.rsi[n]!=null ? clamp((I.rsi[n]-50)/20,-1,1) : null,
+    I.hist[n]!=null&&A>0 ? clamp(I.hist[n]/(0.5*A),-1,1) : null,
+    I.bb.up[n]!=null&&I.bb.up[n]>I.bb.lo[n] ? clamp(-((c-I.bb.lo[n])/(I.bb.up[n]-I.bb.lo[n])-0.5)*2,-1,1) : null
+  ];
+  let sw=0, s=0;
+  sc.forEach((v,i)=>{ const e=$('agv'+i); if(v==null){ e.textContent='資料不足'; e.className='v flat'; } else { e.textContent=(v>=0?'+':'')+(v*100).toFixed(0); e.className='v '+cls(v); sw+=S.weights[i]; s+=S.weights[i]*v; } setBar('agb'+i, v); });
+  const r120=returns(120), r20=r120.slice(-20), sl=stdev(r120), ss=stdev(r20);
+  const mult = sl && ss ? clamp(sl/ss, 0.3, 1) : null;
+  $('agvr').textContent = mult==null ? '資料不足' : '× '+mult.toFixed(2);
+  const comp = sw>0 && mult!=null ? mult*s/sw*100 : null;
+  $('compV').textContent = comp==null ? '—' : (comp>=0?'+':'')+comp.toFixed(0); $('compV').className='big '+cls(comp);
+  $('compL').textContent = comp==null ? (sw===0?'權重全為 0':'資料不足') : comp>=30 ? '偏多' : comp<=-30 ? '偏空' : '中性';
+  $('compL').className='lab '+(comp==null?'flat':comp>=30?'up':comp<=-30?'dn':'flat');
+  setBar('compB', comp==null?null:comp/100);
+}
+
+// ================= risk =================
+function periodsPerYear(){ const sec=ITV[S.itv].sec; return sec>=86400 ? S.days : S.days*S.dayMin*60/sec; }
+function buildRisk(){
+  const K=[['年化波動度','依每年 K 棒數換算'],['歷史 VaR 95%','單根 K 棒，損失門檻'],['最大回撤','最近 120 根收盤價'],['ATR(14)','平均真實區間']];
+  $('risk').replaceChildren(...K.map((k,i)=>{ const d=el('div',{class:'rm'}); d.append(el('div',{class:'k'},k[0]), el('div',{class:'v',id:'rv'+i},'—'), el('div',{class:'s',id:'rs'+i},k[1])); return d; }));
+}
+function renderRisk(){
+  const r=returns(120), n=r.length;
+  if(n<30){ for(let i=0;i<4;i++) $('rv'+i).textContent='資料不足'; $('riskNote').textContent=`目前僅有 ${n} 筆可用報酬，至少需要 30 筆。`; return; }
+  const sd=stdev(r), ppy=periodsPerYear();
+  $('rv0').textContent=(sd*Math.sqrt(ppy)*100).toFixed(1)+'%'; $('rs0').textContent=`每根 ${(sd*100).toFixed(3)}% × √${Math.round(ppy).toLocaleString()}`;
+  const so=[...r].sort((a,b)=>a-b), q=so[Math.floor(0.05*(n-1))];
+  $('rv1').textContent=(-q*100).toFixed(3)+'%'; $('rs1').textContent=`單根 K 棒有 5% 機率跌幅超過此值`;
+  const cl=S.bars.slice(-121).map(x=>x.c); let pk=-Infinity, mdd=0; for(const v of cl){ pk=Math.max(pk,v); mdd=Math.max(mdd,1-v/pk); }
+  $('rv2').textContent='−'+(mdd*100).toFixed(2)+'%';
+  const A=S.ind.atr[S.bars.length-1], c=S.bars[S.bars.length-1].c;
+  $('rv3').textContent= A!=null ? fmt(A,prec(c)) : '資料不足'; $('rs3').textContent= A!=null ? `約為價格的 ${(A/c*100).toFixed(2)}%` : '平均真實區間';
+  $('riskInfo').textContent=`最近 ${n} 筆報酬 · ${S.itv}`;
+  $('riskNote').textContent = S.itv==='1d' ? '日線報酬包含週末與假日間隔。' : '已排除跨休市缺口的報酬。分鐘級年化波動度易受微結構雜訊影響而偏高，宜與日線比較。';
+}
+
+// ================= order book / profile =================
+function renderDepth(){
+  const d=S.depth; if(!d || !d.bids || !d.asks) return;
+  const L=12, asks=d.asks.slice(0,L).map(x=>[+x[0],+x[1]]), bids=d.bids.slice(0,L).map(x=>[+x[0],+x[1]]);
+  if(!asks.length || !bids.length) return;
+  const mx=Math.max(...asks.map(a=>a[1]), ...bids.map(b=>b[1]));
+  const p=Math.min(8, Math.max(prec(asks[0][0]), ...d.asks.slice(0,L).map(x=>decs(x[0])), ...d.bids.slice(0,L).map(x=>decs(x[0]))));
+  const rows=[]; const hdr=el('div',{class:'obr obh'}); hdr.append(el('span',null,'價格'), el('span',null,'數量'), el('span',null,'累計')); rows.push(hdr);
+  let cum=0; const ar=[]; for(const [px,q] of asks){ cum+=q; ar.push([px,q,cum]); }
+  ar.reverse().forEach(([px,q,cu])=>{ const r=el('div',{class:'obr'}); const i=el('i'); i.style.width=(q/mx*100)+'%'; i.style.background=COL.dn; r.append(i, el('span',{class:'dn'},fmt(px,p)), el('span',null,fmtVol(q)), el('span',null,fmtVol(cu))); rows.push(r); });
+  const spread=asks[0][0]-bids[0][0], mid=(asks[0][0]+bids[0][0])/2;
+  rows.push(el('div',{class:'mid'}, `${fmt(mid,p)}　價差 ${fmt(spread,p)}`));
+  cum=0; bids.forEach(([px,q])=>{ cum+=q; const r=el('div',{class:'obr'}); const i=el('i'); i.style.width=(q/mx*100)+'%'; i.style.background=COL.up; r.append(i, el('span',{class:'up'},fmt(px,p)), el('span',null,fmtVol(q)), el('span',null,fmtVol(cum))); rows.push(r); });
+  $('ob').replaceChildren(...rows);
+  const sb=bids.reduce((a,b)=>a+b[1],0), sa=asks.reduce((a,b)=>a+b[1],0);
+  $('obInfo').textContent=`買賣量比 ${(sb/(sa||1)).toFixed(2)}`;
+  // Binance 買單在下（紅＝買方），賣單在上（綠＝賣方）
+}
+function renderProfile(){
+  const b=S.bars; if(!b.length) return;
+  let start=b.length-1;
+  if(S.itv==='1d') start=Math.max(0,b.length-60);
+  else { const gap=ITV[S.itv].sec*3; while(start>0 && b[start].t-b[start-1].t<=gap && b.length-start<2000) start--; }
+  const seg=b.slice(start); const hi=Math.max(...seg.map(x=>x.h)), lo=Math.min(...seg.map(x=>x.l));
+  const useVol = seg.some(x=>x.v>0), NB=22, w=(hi-lo)/NB || 1, bins=new Array(NB).fill(0);
+  for(const x of seg){ const tp=(x.h+x.l+x.c)/3; const k=clamp(Math.floor((tp-lo)/w),0,NB-1); bins[k]+= useVol ? x.v : 1; }
+  const mx=Math.max(...bins)||1, poc=bins.indexOf(Math.max(...bins)), cur=clamp(Math.floor((S.price-lo)/w),0,NB-1), p=prec(S.price);
+  const rows=[];
+  for(let k=NB-1;k>=0;k--){
+    const r=el('div',{class:'vp'+(k===cur?' cur':k===poc?' poc':'')});
+    const bw=el('div'); const bar=el('div',{class:'bar'}); bar.style.width=(bins[k]/mx*100)+'%'; bw.append(bar);
+    r.append(el('span',null,fmt(lo+(k+0.5)*w,p)), bw, el('span',null, useVol?fmtVol(bins[k]):String(bins[k])));
+    rows.push(r);
+  }
+  rows.push(el('div',{class:'note',style:'margin-top:6px'}, `${useVol?'依成交量':'外匯無集中市場成交量，改以價格停留的 K 棒數'}統計${S.itv==='1d'?'最近 60 根日線':'本時段'}（${seg.length} 根）。橘色＝最大量價位，藍色＝目前價位。`));
+  $('ob').replaceChildren(...rows);
+  $('obInfo').textContent = useVol ? `最大量價位 ${fmt(lo+(poc+0.5)*w,p)}` : '';
+}
+
+// ================= trades / quote log =================
+function renderTrades(){
+  const q=S.tradesQ.slice(-24).reverse(); if(!q.length) return;
+  const p=Math.min(8, Math.max(prec(+q[0].p), ...q.map(t=>decs(t.p))));
+  $('log').replaceChildren(...q.map(t=>{ const d=el('div'); const sell=t.m; d.append(el('span',{class:'ts'},hhmmss(t.T)+' '), el('span',{class:sell?'dn':'up'}, (sell?'賣 ':'買 ')+fmt(+t.p,p)), document.createTextNode('  '+fmtVol(+t.q))); return d; }));
+  $('logInfo').textContent='紅＝主動買　綠＝主動賣';
+}
+function logQuote(px, first){
+  if(!fin(px)) return;
+  const prev=S.lastPollPx, d=prev==null?null:px-prev; S.lastPollPx=px;
+  const p=prec(px), row=el('div');
+  row.append(el('span',{class:'ts'},hhmmss(Date.now())+' '), el('span',{class:cls(d)}, fmt(px,p)), document.createTextNode('  '+(first?'初始報價':d===0?'無變動':(d>0?'▲ ':'▼ ')+fmt(Math.abs(d),p))));
+  const box=$('log'); box.prepend(row); while(box.children.length>26) box.lastChild.remove();
+  $('logInfo').textContent = isFresh() ? `每 ${pollMs()/1000} 秒輪詢` : '休市中，每 60 秒檢查';
+}
+
+// ================= KPI strip =================
+const KPI = [
+  {k:'加權指數', y:'^TWII', m:'yahoo'}, {k:'那斯達克', y:'^IXIC', m:'yahoo'}, {k:'S&P 500', y:'^GSPC', m:'yahoo'},
+  {k:'費城半導體', y:'^SOX', m:'yahoo'}, {k:'USD / TWD', y:'TWD=X', m:'yahoo', s:'USDTWD', mk:'fx'}, {k:'BTC / USDT', b:'btcusdt', s:'BTC', mk:'crypto'}
+];
+function buildKpi(){
+  $('kpis').replaceChildren(...KPI.map((o,i)=>{ const d=el('div',{class:'kpi',id:'kp'+i,role:'button',tabindex:'0',title:'點選查看'}); d.append(el('div',{class:'k'},o.k), el('div',{class:'v'},'—'), el('div',{class:'d'},'—'));
+    const go=()=>{ $('sym').value=o.s||o.y; $('mkt').value=o.mk||'yahoo'; submit(); }; d.addEventListener('click',go); d.addEventListener('keydown',e=>{ if(e.key==='Enter') go(); }); return d; }));
+}
+function setKpi(i, v, pc){
+  const e=$('kp'+i); if(!e) return; const ve=e.querySelector('.v'), de=e.querySelector('.d'); const p=Math.min(prec(v),3);
+  const old=e._v; ve.textContent=fmt(v,p); const ch=fin(pc)&&pc?v/pc-1:null; de.textContent= ch==null?'—':(ch>=0?'▲ ':'▼ ')+Math.abs(ch*100).toFixed(2)+'%'; de.className='d '+cls(ch);
+  if(old!=null && v!==old){ e.classList.remove('flashUp','flashDn'); void e.offsetWidth; e.classList.add(v>old?'flashUp':'flashDn'); } e._v=v;
+}
+async function pollKpi(){
+  if(!document.hidden){
+    try{
+      const ys=KPI.filter(o=>o.y).map(o=>o.y);
+      const j=await yfetch(`/v8/finance/spark?symbols=${ys.map(encodeURIComponent).join(',')}&range=1d&interval=5m`);
+      KPI.forEach((o,i)=>{ if(!o.y || !j[o.y]) return; const c=(j[o.y].close||[]).filter(fin); if(c.length) setKpi(i, c[c.length-1], j[o.y].chartPreviousClose); });
+    }catch(e){ console.warn('kpi', e); }
+  }
+  setTimeout(pollKpi, 60000);
+}
+function kpiWs(){
+  const i=KPI.findIndex(o=>o.b); if(i<0) return;
+  let ws; try{ ws=new WebSocket(BN_WS+KPI[i].b+'@miniTicker'); }catch(e){ return; }
+  ws.onmessage=ev=>{ try{ const d=JSON.parse(ev.data).data; throttle('kpibtc',()=>setKpi(i, +d.c, +d.o), 1000); }catch(e){} };
+  ws.onclose=()=>setTimeout(kpiWs, 5000);
+}
+
+// ================= wiring =================
+function submit(){ load($('sym').value, $('mkt').value, $('itv').value); }
+$('form').addEventListener('submit', e=>{ e.preventDefault(); submit(); });
+$('itv').addEventListener('change', ()=>{ if($('sym').value.trim()) submit(); });
+EXAMPLES.forEach(([s,m,n])=>{ const b=el('button',{type:'button',title:n},`${s} ${n}`); b.addEventListener('click',()=>{ $('sym').value=s; $('mkt').value=m; $('sym').focus(); submit(); }); $('ex').append(b); });
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden && S.kind==='yahoo' && S.timer){ clearTimeout(S.timer); poll(S.gen); } });
+
+initChart(); buildAgents(); buildRisk(); buildKpi(); pollKpi(); kpiWs();
+(function start(){
+  const q=new URLSearchParams(location.search);
+  const s=q.get('s')||'BTC', m=q.get('m')||'auto', i=q.get('i')||'1m';
+  $('sym').value=s; if([...$('mkt').options].some(o=>o.value===m)) $('mkt').value=m; if(ITV[i]) $('itv').value=i;
+  submit();
+})();
+</script>
+</body>
+</html>

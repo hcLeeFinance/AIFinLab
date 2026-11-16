@@ -108,6 +108,17 @@ header{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;padding:10px 
 .log div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .log .ts{color:var(--dim)}
 
+.s12{grid-column:span 12}
+.news{max-height:440px;overflow-y:auto;padding:4px 10px 8px}
+.nw{display:grid;grid-template-columns:88px 64px 1fr;gap:10px;align-items:baseline;padding:7px 0;border-bottom:1px dashed var(--line)}
+.nw .tm{color:var(--dim);font-family:'JetBrains Mono';font-size:11.5px}
+.nw .src{font-size:11px;padding:1px 6px;border-radius:2px;border:1px solid #2f3c50;color:#aebbd0;text-align:center;white-space:nowrap}
+.nw .src.cy{border-color:#3a5a7a;color:#9fd0ff}.nw .src.ud{border-color:#6a5530;color:#ffcf7a}
+.nw a{color:#e6edf6;text-decoration:none;line-height:1.5}
+.nw a:hover{color:var(--cyan);text-decoration:underline}
+.nw.new a{color:var(--white);font-weight:700}
+.newsNote{padding:6px 10px 10px;color:var(--dim);font-size:11.5px;line-height:1.6;border-top:1px solid var(--line)}
+@media(max-width:560px){.nw{grid-template-columns:1fr;gap:2px}.nw .src{justify-self:start}}
 footer{padding:14px 16px 28px;color:var(--dim);font-size:12px;line-height:1.8;border-top:1px solid var(--line);margin-top:6px}
 footer b{color:#b4c2d6}
 @media(max-width:1100px){.s8,.s4{grid-column:span 12}.kpis{grid-template-columns:repeat(3,1fr)}#chart{height:480px}}
@@ -194,12 +205,19 @@ footer b{color:#b4c2d6}
     <h3><span id="logTitle">逐筆成交</span><span class="t" id="logInfo"></span></h3>
     <div class="log" id="log"></div>
   </section>
+
+  <section class="p s12">
+    <h3><span id="newsTitle">相關新聞</span><span class="t" id="newsInfo"></span></h3>
+    <div class="news" id="news"><div class="note" style="padding:10px 0">載入中…</div></div>
+    <div class="newsNote" id="newsNote"></div>
+  </section>
 </div>
 
 <footer>
 <b>資料來源：</b>台股、美股、外匯與指數取自 Yahoo Finance（經 FinLab 自建轉送服務），約每 10 秒更新一次，報價可能有延遲，請以上方顯示的「報價時間」為準；加密貨幣取自 Binance 公開行情（data-api.binance.vision），即時推播。<br>
 <b>時間軸：</b>台股、美股等交易所商品使用交易所當地時間；外匯與加密貨幣（24 小時市場）使用您電腦的當地時間。<br>
 <b>方法：</b>MA 為簡單移動平均；RSI 與 ATR 採 Wilder 平滑；MACD 為 EMA(12) − EMA(26)，訊號線 EMA(9)；布林通道 20 期 ±2 標準差。風險指標使用最近 120 根 K 棒的簡單報酬，跨休市缺口（間隔超過 3 根 K 棒）的報酬不納入。年化波動度 = 每根標準差 × √(每年 K 棒數)，每年 K 棒數依各市場每日交易時間估算；分鐘線的波動度會受買賣價差等微結構雜訊影響而偏高。<br>
+<b>新聞：</b>標題與連結取自鉅亨網（依代號標記篩選）與經濟日報 RSS（依名稱關鍵字篩選），每 5 分鐘更新，點選標題開啟原文；新聞內容與著作權屬原媒體。<br>
 <b>指標代理人：</b>各代理人為公開的技術指標規則，分數只描述目前指標狀態（偏多／中性／偏空），不是買賣建議。<br>
 ⚠ 本頁為教學與資訊展示用途，不構成任何投資建議或推薦，投資人應自行判斷並承擔風險。
 圖表使用 <a href="https://www.tradingview.com/lightweight-charts/" target="_blank" rel="noopener">TradingView Lightweight Charts™</a>（Apache-2.0）。
@@ -442,6 +460,7 @@ async function load(raw, mkt, itv){
   try{
     const ok = r.kind==='crypto' ? await loadCrypto(r, itv, req) : await loadYahoo(r, itv, req);
     if(ok!==true || req!==S.req) return;
+    newsFor();
     try{ history.replaceState(null,'', `?s=${encodeURIComponent(raw.trim())}&m=${mkt}&i=${itv}`); }catch(e){}
   }catch(e){
     if(req!==S.req) return;
@@ -721,7 +740,7 @@ function renderProfile(){
   const b=S.bars; if(!b.length) return;
   let start=b.length-1;
   if(S.itv==='1d') start=Math.max(0,b.length-60);
-  else { const gap=ITV[S.itv].sec*3; while(start>0 && b[start].t-b[start-1].t<=gap && b.length-start<2000) start--; }
+  else { const gap=Math.max(ITV[S.itv].sec*3, 3600); while(start>0 && b[start].t-b[start-1].t<=gap && b.length-start<2000) start--; }
   const seg=b.slice(start); const hi=Math.max(...seg.map(x=>x.h)), lo=Math.min(...seg.map(x=>x.l));
   const useVol = seg.some(x=>x.v>0), NB=22, w=(hi-lo)/NB || 1, bins=new Array(NB).fill(0);
   for(const x of seg){ const tp=(x.h+x.l+x.c)/3; const k=clamp(Math.floor((tp-lo)/w),0,NB-1); bins[k]+= useVol ? x.v : 1; }
@@ -784,6 +803,114 @@ function kpiWs(){
   ws.onmessage=ev=>{ try{ const d=JSON.parse(ev.data).data; throttle('kpibtc',()=>setKpi(i, +d.c, +d.o), 1000); }catch(e){} };
   ws.onclose=()=>setTimeout(kpiWs, 5000);
 }
+
+// ================= news =================
+const NEWS_MS = 5*60*1000;
+const UDN = ch => `https://money.udn.com/rssfeed/news/1001/${ch}?ch=money`;
+const UDN_NAME = {5590:'股市', 5591:'金融', 5588:'國際'};
+const N = {req:0, timer:null, key:null, at:0, seen:new Set()};
+async function pget(url, xml){
+  const r = await fetch(PROXY + encodeURIComponent(url));
+  if(!r.ok) throw new Error('HTTP ' + r.status);
+  return xml ? r.text() : r.json();
+}
+function newsCtx(){
+  if(S.kind==='crypto' || S.yFallback) return {key:'crypto', label:'加密貨幣新聞', cy:'category/bc', ud:[5591,5588],
+    kw:/比特幣|加密|虛擬(資產|貨幣)|以太幣|穩定幣|區塊鏈|幣圈|BTC|ETH/i, kwLabel:'加密貨幣相關關鍵字'};
+  const m=S.meta||{}, type=m.instrumentType||'', sym=S.sym||'';
+  if(type==='CURRENCY') return {key:'fx', label:'外匯新聞', cy:'category/forex', ud:[5591],
+    kw:/匯率|匯市|新台幣|台幣|美元|日圓|歐元|人民幣|央行|Fed|聯準會/i, kwLabel:'匯率相關關鍵字'};
+  const tw = /\.(TW|TWO)$/.test(sym);
+  if(tw && (type==='EQUITY'||type==='ETF')){ const code=sym.split('.')[0]; return {key:'tw:'+code, label:'相關新聞', cy:`TWS:${code}:STOCK/symbolNews`, ud:[5590,5591], code}; }
+  if(type==='INDEX' && (/^\^TW/.test(sym) || /Taiwan/i.test(m.fullExchangeName||''))) return {key:'twidx', label:'台股新聞', cy:'category/tw_stock', ud:[5590]};
+  if((type==='EQUITY'||type==='ETF') && !sym.includes('.') && m.currency==='USD') return {key:'us:'+sym, label:'相關新聞', cy:`USS:${sym}:STOCK/symbolNews`, cyFallback:'category/wd_stock', ud:[5588], code:sym};
+  return {key:'other', label:'財經頭條', cy:'category/headline', ud:[5588]};
+}
+function newsFor(){
+  const ctx = newsCtx();
+  if(ctx.key===N.key && Date.now()-N.at < NEWS_MS) return;   // 同一標的只換 K 線週期：不重抓
+  N.key = ctx.key; N.seen = new Set();
+  $('news').replaceChildren(el('div',{class:'note',style:'padding:10px 0'},'載入中…'));
+  loadNews(ctx);
+}
+async function loadNews(ctx){
+  const req = ++N.req; clearTimeout(N.timer);
+  const items = [];
+  let cyNote = '鉅亨網：' + (ctx.code ? `代號 ${ctx.code} 標記的新聞` : '「' + ctx.label.replace('新聞','') + '」分類');
+  let name = null;
+  try{
+    let j = await pget(`https://api.cnyes.com/media/api/v1/newslist/${ctx.cy}?limit=30`);
+    let data = (j && j.items && j.items.data) || [];
+    if(!data.length && ctx.cyFallback){
+      j = await pget(`https://api.cnyes.com/media/api/v1/newslist/${ctx.cyFallback}?limit=30`);
+      data = (j && j.items && j.items.data) || [];
+      cyNote = `鉅亨網：代號 ${ctx.code} 暫無標記新聞，改顯示國際股市分類`;
+    }
+    for(const x of data){
+      if(!x || !x.title || !x.newsId) continue;
+      if(ctx.code && !name) for(const mk of (x.market||[])) if(String(mk.code).toUpperCase()===String(ctx.code).toUpperCase() && mk.name){ name=mk.name; break; }
+      items.push({t:(x.publishAt||0)*1000, title:x.title, url:`https://news.cnyes.com/news/id/${x.newsId}`, src:'鉅亨網', c:'cy'});
+    }
+  }catch(e){ console.warn('cnyes', e); cyNote = '鉅亨網：讀取失敗，稍後自動重試'; }
+  if(req!==N.req) return;
+  // 經濟日報：個股以中文名稱過濾；找不到名稱就不納入，避免混入無關新聞
+  let kw = ctx.kw || null, kwLabel = ctx.kwLabel || '';
+  if(ctx.code && name){ kw = new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')); kwLabel = `名稱「${name}」`; }
+  const useUdn = ctx.code ? !!name : true;
+  let udNote = useUdn ? `經濟日報：${ctx.ud.map(c=>UDN_NAME[c]).join('、')}頻道` + (kw ? `，標題含${kwLabel}` : '') : '經濟日報：查不到此代號的中文名稱，未納入';
+  if(useUdn){
+    const res = await Promise.allSettled(ctx.ud.map(ch=>pget(UDN(ch), true)));
+    if(req!==N.req) return;
+    let fail = 0;
+    res.forEach(r=>{
+      if(r.status!=='fulfilled'){ fail++; return; }
+      const doc = new DOMParser().parseFromString(r.value, 'text/xml');
+      if(doc.querySelector('parsererror')){ fail++; return; }
+      doc.querySelectorAll('item').forEach(it=>{
+        const title = ((it.querySelector('title')||{}).textContent||'').trim();
+        const link = ((it.querySelector('link')||{}).textContent||'').trim();
+        const pd = (it.querySelector('pubDate')||{}).textContent||'';
+        if(!title || !/^https?:\/\//.test(link)) return;
+        if(kw && !kw.test(title)) return;
+        items.push({t:Date.parse(pd)||0, title, url:link, src:'經濟日報', c:'ud'});
+      });
+    });
+    if(fail) udNote += `（${fail} 個頻道讀取失敗，稍後自動重試）`;
+  }
+  // 去重（同標題）、新到舊、最多 40 則
+  const seen = new Set(), out = [];
+  items.sort((a,b)=>b.t-a.t).forEach(x=>{ const k=x.title.replace(/\s+/g,''); if(seen.has(k)) return; seen.add(k); out.push(x); });
+  renderNews(ctx, out.slice(0,40), name, cyNote, udNote);
+  N.at = Date.now();
+  N.timer = setTimeout(()=>pollNews(req, ctx), NEWS_MS);
+}
+function pollNews(req, ctx){
+  if(req!==N.req) return;
+  if(document.hidden){ N.timer = setTimeout(()=>pollNews(req, ctx), 30000); return; }
+  loadNews(ctx);
+}
+function newsTime(t){
+  if(!t) return '';
+  const d = new Date(t), now = new Date();
+  const hm = d.toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit',hour12:false});
+  return d.toDateString()===now.toDateString() ? '今天 '+hm : `${d.getMonth()+1}/${d.getDate()} ${hm}`;
+}
+function renderNews(ctx, list, name, cyNote, udNote){
+  $('newsTitle').textContent = ctx.label + (name ? ` · ${name}` : '');
+  $('newsInfo').textContent = `更新於 ${hhmmss(Date.now())} · 每 5 分鐘`;
+  const first = N.seen.size===0, rows = [];
+  for(const x of list){
+    const r = el('div',{class:'nw'+(!first && !N.seen.has(x.url) ? ' new' : '')});
+    r.append(el('span',{class:'tm'},newsTime(x.t)), el('span',{class:'src '+x.c},x.src), el('a',{href:x.url,target:'_blank',rel:'noopener noreferrer'},x.title));
+    rows.push(r);
+  }
+  list.forEach(x=>N.seen.add(x.url));
+  $('news').replaceChildren(...(rows.length ? rows : [el('div',{class:'note',style:'padding:10px 0'},'目前沒有符合的新聞。')]));
+  $('newsNote').textContent = `篩選方式：${cyNote}；${udNote}（RSS 每頻道只提供最新 20 則，個股新聞較少）。粗體為這次更新新出現的新聞。點選標題開啟原媒體網頁，著作權屬原媒體。`;
+}
+document.addEventListener('visibilitychange', ()=>{
+  if(!document.hidden && N.key && Date.now()-N.at > NEWS_MS){ const ctx = newsCtx(); if(ctx.key===N.key) loadNews(ctx); }
+});
 
 // ================= wiring =================
 function submit(){ load($('sym').value, $('mkt').value, $('itv').value); }
